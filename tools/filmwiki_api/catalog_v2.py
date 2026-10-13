@@ -5,6 +5,7 @@ Reads only. Search is a bounded substring scan until a separate FTS index is bui
 """
 from contextlib import closing
 import base64
+import binascii
 import hashlib
 import hmac
 import json
@@ -95,7 +96,7 @@ def _decode_cursor(secret,cursor,context):
         if payload.get("context")!=context or type(payload.get("last")) is not int or payload["last"]<1:
             raise ValueError("Wrong cursor context")
         return payload["last"]
-    except (ValueError,TypeError,UnicodeDecodeError,OverflowError,KeyError) as exc:
+    except (ValueError,TypeError,UnicodeDecodeError,OverflowError,KeyError,binascii.Error) as exc:
         raise ValueError("Bad cursor") from exc
 
 
