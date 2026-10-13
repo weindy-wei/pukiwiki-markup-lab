@@ -24,7 +24,7 @@ async function request(fetcher, endpoint, token) {
   return response.json();
 }
 
-export async function readLocalSnapshot(token, fetcher = fetch) {
+export async function readLocalSnapshot(token, fetcher = (...args) => globalThis.fetch(...args)) {
   if (typeof token !== "string" || token.length < 40 || token.length > 200) {
     throw new Error("请输入有效的本地访问令牌。");
   }
