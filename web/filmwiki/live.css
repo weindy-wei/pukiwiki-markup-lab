@@ -1,0 +1,30 @@
+.fw-crumbs a{color:inherit;text-decoration:none;font-weight:800;letter-spacing:1px;font-size:10px}
+.live-select-label{font-size:11px;color:#8da0bb;padding:0 13px;margin-bottom:8px}
+.live-project-select{margin:0 5px 30px;width:calc(100% - 10px);background:#26364c!important;color:#e3ebf6!important;border-color:#3b506c!important;font-size:12px}
+.live-nav-label{margin-bottom:9px}
+.live-connect{border:1px solid #cfdff1;border-radius:8px;padding:23px 28px;display:grid;grid-template-columns:1fr 350px;gap:30px;background:#f0f6fe;margin-bottom:35px}
+.live-connect h1{font-size:20px;margin:10px 0;color:#334f73}
+.live-connect p{font-size:12px;color:#8091a9;line-height:1.85;margin:0}
+.live-connect-form{display:flex;flex-direction:column;justify-content:center;gap:9px}
+.live-connect-form label{color:#63819c;font-size:11px;font-weight:700}
+.live-connect-controls{display:flex;gap:8px}
+.live-connect-controls input{flex:1;min-width:100px;font-size:12px}
+.live-connect-controls button{font-size:12px;white-space:nowrap}
+.live-connect.is-connected{padding:15px 23px;grid-template-columns:1fr;gap:0}
+.live-connect.is-connected>div,.live-connect.is-connected form{display:none}
+.live-connect.is-connected::after{content:"已连接本机 API，当前令牌仅保存在本次页面内存中。";font-size:11px;color:#607e9b}
+.live-workspace-header{margin-top:4px}
+.live-query{flex-wrap:wrap}
+.live-query .live-field{width:180px;height:39px;font-size:12px}
+.live-query .live-value{width:140px;height:39px;font-size:12px}
+.live-query .btn{height:39px;font-size:12px;white-space:nowrap}
+.live-pager{padding:14px 25px;display:flex;align-items:center;justify-content:end;gap:16px;border-top:1px solid #edf0f4}
+#page-info{font-size:11px;color:#8797a8}
+.live-data-table tbody tr[role=button]:focus-visible{outline:2px solid #4778ad;outline-offset:-2px}
+.live-detail-back{margin:12px 0}
+.live-loading{color:#7895b1;font-size:13px;text-align:center;padding:55px}
+.live-record-meta{font-size:11px;color:#7a91a9}
+.live-parent-alert{margin-top:12px;padding:12px;border:1px solid #ebcfaa;border-radius:5px;background:#fff8e9;color:#916634;font-size:12px}
+.live-sheet-summary{font-size:11px;color:#a0b3c9}
+@media(max-width:900px){.live-connect{grid-template-columns:1fr}.live-query .fw-search{flex:1 1 100%;max-width:none}}
+@media(max-width:760px){.live-connect{padding:17px;gap:15px;margin-bottom:24px}.live-project-select{max-width:100%;margin:0 0 9px}.live-query .live-field,.live-query .live-value{width:auto;flex:1 1 42%}.live-pager{justify-content:center;padding:15px}}
