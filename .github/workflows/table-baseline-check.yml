@@ -1,0 +1,32 @@
+name: PukiWiki table baseline (offline)
+on:
+  pull_request:
+    paths:
+      - "docs/markup/table-basics.md"
+      - "tests/markup/**"
+      - ".github/workflows/table-baseline-check.yml"
+  push:
+    branches: [master]
+    paths:
+      - "docs/markup/table-basics.md"
+      - "tests/markup/**"
+      - ".github/workflows/table-baseline-check.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  baseline:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Check Python syntax
+        run: python -m compileall -q tests/markup
+      - name: Validate five documented cases (offline)
+        run: python tests/markup/test_table_rendering.py --dry-run
+      - name: Test runner safeguards and assertions (offline)
+        run: python -m unittest discover -s tests/markup -p 'test_*.py' -v
