@@ -5,6 +5,7 @@ The API never accepts a database path, SQL, file path, or user-controlled source
 fingerprint over HTTP. Serving requires explicit --db, --data-root and --token-file.
 """
 import argparse
+from contextlib import closing
 import hmac
 import json
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -34,7 +35,7 @@ def open_readonly(db):
 
 
 def manifest(db, sha):
-    with open_readonly(db) as con:
+    with closing(open_readonly(db)) as con:
         row = con.execute(
             "SELECT source_filename, preview_sha256 FROM imports WHERE source_sha256=?", (sha,)
         ).fetchone()
@@ -255,8 +256,11 @@ def validate_startup(db,root,token_file,source):
     if not data_root.is_dir() or not path.is_file() or not path.is_relative_to(data_root):
         raise ValueError("SQLite database must be inside private data root")
     private=Path(token_file).resolve(strict=True)
-    if not private.is_file() or private.is_relative_to(data_root/"web"):
+    if not private.is_file():
         raise ValueError("Invalid token file")
+    # Reject token files accidentally stored in a public PukiWiki subtree.
+    if any(part in ("public","www","webroot","filmwiki-preview") for part in private.parts):
+        raise ValueError("Refusing credential file below a public/static directory")
     token=private.read_text(encoding="utf-8").strip()
     if len(token)<40 or len(token)>200 or not token.isascii():
         raise ValueError("Token file must contain strong token")
