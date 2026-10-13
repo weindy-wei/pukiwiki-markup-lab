@@ -1,0 +1,13 @@
+{
+  "id": "project_overview",
+  "version": 1,
+  "columns": 2,
+  "fields": ["title", "genre", "stage", "owner"],
+  "rows": [
+    {"kind": "header", "cells": ["项目字段", "内容"]},
+    {"kind": "body", "cells": ["项目名称", "{{title}}"]},
+    {"kind": "body", "cells": ["项目类型", "{{genre}}"]},
+    {"kind": "body", "cells": ["制作阶段", "{{stage}}"]},
+    {"kind": "body", "cells": ["负责人", "{{owner}}"]}
+  ]
+}
