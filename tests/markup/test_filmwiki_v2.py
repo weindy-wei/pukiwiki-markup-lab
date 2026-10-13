@@ -81,6 +81,8 @@ class V2Tests(unittest.TestCase):
         self.assertNotIn("db",json.dumps(p))
         code,a=self.request("/v2/projects/demo-a/manifest")
         self.assertEqual(code,200)
+        self.assertEqual(a["format"],"filmwiki-project-manifest")
+        self.assertEqual(a["version"],2)
         self.assertEqual(a["project"]["id"],"demo-a")
         self.assertEqual(a["sheets"][0]["record_count"],253)
         self.assertEqual(len(a["sheets"][0]["fields"]),17)
