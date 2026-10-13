@@ -31,7 +31,11 @@ fixtures = {
         '* Shot Test\n'
         '#tabletpl(shot_card,shot=SC017,setting=欧罗巴基地,action=黑晶生长,duration=12秒)\n'
     ),
-    'PukiWikiTabletplDataset': (\n        '* Dynamic shot dataset test\\n'\n        '#tabletpl(shot_register_v2)\\n'\n    ),\n    'PukiWikiTabletplUnknown': (
+    'PukiWikiTabletplDataset': (
+        '* Dynamic shot dataset test\n'
+        '#tabletpl(shot_register_v2)\n'
+    ),
+    'PukiWikiTabletplUnknown': (
         '* Invalid Template Test\n'
         '#tabletpl(unknown_id,title=Hi)\n'
     ),
@@ -80,7 +84,11 @@ for page,source in fixtures.items():
     elif page.endswith('Shot'):
         passed=(http==200 and g.tables==1 and g.th==4 and
                 'SC017' in texts and '黑晶生长' in texts and '12秒' in texts)
-    elif page.endswith('Dataset'):\n        passed=(http==200 and g.tables==1 and g.th==5 and\n                'SC02-001' in texts and 'SC02-002' in texts and\n                '巷道远景' in texts and '人物跟拍' in texts)\n    elif page.endswith('Unknown'):
+    elif page.endswith('Dataset'):
+        passed=(http==200 and g.tables==1 and g.th==5 and
+                'SC02-001' in texts and 'SC02-002' in texts and
+                '巷道远景' in texts and '人物跟拍' in texts)
+    elif page.endswith('Unknown'):
         passed=(http==200 and g.tables==0 and 'tabletpl: Unknown or invalid template' in g.data)
     else:
         passed=(http==200 and g.tables==0 and 'tabletpl: Invalid field value' in g.data and
