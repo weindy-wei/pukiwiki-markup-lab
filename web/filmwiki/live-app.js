@@ -203,7 +203,7 @@ async function switchProject(id){
   try{
     const m=await client.manifest(id);
     if(!isActive(generation))return;
-    state.projectId=id;state.manifest=m;
+    state.projectId=id;state.manifest=m;state.mode="grid";
     state.sheetIndex=m.sheets[0]?.sheet_index??1;
     state.meta=m.sheets[0]??null;state.query={q:"",field:null,value:null};
     state.page=null;state.pageNum=1;state.cursor=null;state.cursorHistory=[];
@@ -218,7 +218,7 @@ async function switchProject(id){
 async function switchSheet(index){
   const meta=state.manifest?.sheets.find(s=>s.sheet_index===index);
   if(!meta)return;
-  state.sheetIndex=index;state.meta=meta;
+  state.sheetIndex=index;state.meta=meta;state.mode="grid";
   state.query={q:"",field:null,value:null};state.page=null;state.pageNum=1;
   state.cursor=null;state.cursorHistory=[];state.detail=null;
   redraw();await loadPage();
