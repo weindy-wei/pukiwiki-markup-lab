@@ -22,8 +22,13 @@ for candidate in "$TMP/package/LICENSE" "$TMP/package/LICENSE.md" "$TMP/package/
   if [[ -f "$candidate" ]]; then LICENSE_FILE="$candidate"; break; fi
 done
 if [[ -z "$LICENSE_FILE" ]]; then
-  echo "Missing license in @tabler/core package" >&2
-  exit 1
+  # Tabler core npm tarball omits the root license; obtain its upstream MIT text.
+  command -v curl >/dev/null || { echo "curl required for license" >&2; exit 2; }
+  LICENSE_FILE="$TMP/TABLER-LICENSE"
+  curl -fsSL --retry 2 --max-time 15 \
+    "https://raw.githubusercontent.com/tabler/tabler/dev/LICENSE" -o "$LICENSE_FILE"
+  test -s "$LICENSE_FILE"
+  grep -qi "MIT License" "$LICENSE_FILE"
 fi
 mkdir -p "$DEST/css" "$DEST/js"
 cp "$TMP/package/dist/css/tabler.min.css" "$DEST/css/tabler.min.css"
