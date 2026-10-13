@@ -16,7 +16,7 @@ EXTS=(".png",".jpg",".jpeg",".webp",".gif",".bmp",".svg",".tiff",".tif")
 MAX_COLS=256
 MAX_RECORDS=200000
 
-def transform(inventory):
+def transform(inventory,header_row=1):
     if not isinstance(inventory,dict) or not isinstance(inventory.get("sha256"),str):
         raise ValueError("Invalid XLSX inventory")
     source_sha=inventory["sha256"]
@@ -29,6 +29,8 @@ def transform(inventory):
         if sheet.get("truncated"):
             raise ValueError("Refusing incomplete worksheet preview: "+name)
         rows=sheet.get("preview_rows",[])
+        if rows and rows[0]["source_row"]!=header_row:
+            raise ValueError("Unexpected first non-empty row. Specify --header-row for "+name)
         if sheet.get("source_rows",0)!=len(rows):
             raise ValueError("Preview row count mismatch: "+name)
         if len(rows)>MAX_RECORDS+1:
@@ -100,6 +102,8 @@ def main():
     p=argparse.ArgumentParser(description=__doc__)
     p.add_argument("xlsx",type=Path)
     p.add_argument("--output",type=Path,required=True)
+    p.add_argument("--header-row",type=int,default=1,
+                   help="Expected first non-empty header row in each worksheet (default 1)")
     p.add_argument("--limit",type=int,default=100000,
                    help="Maximum preview rows per sheet, including header")
     a=p.parse_args()
@@ -108,7 +112,7 @@ def main():
     if a.output.exists():
         p.error("Refusing to overwrite output")
     raw=inspect(a.xlsx,preview_rows=a.limit)
-    converted=transform(raw)
+    converted=transform(raw,header_row=a.header_row)
     a.output.parent.mkdir(parents=True,exist_ok=True)
     a.output.write_text(json.dumps(converted,ensure_ascii=False,indent=2)+"\n",encoding="utf-8")
     print(json.dumps({"sheets":len(converted["sheets"]),"records":sum(len(s["records"]) for s in converted["sheets"]),
