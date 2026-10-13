@@ -11,6 +11,9 @@ ROOT=Path(__file__).resolve().parents[2]
 spec=importlib.util.spec_from_file_location("filmwiki_local_store",ROOT/"tools/table_import/local_store.py")
 store=importlib.util.module_from_spec(spec)
 spec.loader.exec_module(store)
+export_spec=importlib.util.spec_from_file_location("filmwiki_export_store",ROOT/"tools/table_import/export_store.py")
+export_mod=importlib.util.module_from_spec(export_spec)
+export_spec.loader.exec_module(export_mod)
 
 SOURCE="0"*64
 FIELDS=["镜头号","分镜","镜头视频","场景","出场角色","景别","拍摄角度","运镜",
@@ -59,6 +62,15 @@ class LocalStoreTests(unittest.TestCase):
             self.assertFalse(db.exists())
             self.assertEqual(store.store(source,db),"imported")
             self.assertEqual(store.store(source,db),"already_imported")
+            portable=export_mod.export_snapshot(db,SOURCE)
+            self.assertEqual(portable["format"],"filmwiki-portable-export")
+            self.assertEqual(len(portable["sheets"]),2)
+            self.assertEqual(len(portable["sheets"][1]["records"]),0)
+            self.assertEqual(len(portable["sheets"][0]["fields"]),17)
+            self.assertIsNone(portable["sheets"][0]["records"][0]["cells"][3]["value"])
+            self.assertEqual(portable["sheets"][0]["records"][1]["cells"][11]["value"],"6")
+            self.assertEqual(portable["sheets"][0]["records"][4]["parent_link"]["status"],"ambiguous")
+            self.assertEqual(portable["asset_references"][0]["filename"],"image.png")
             con=sqlite3.connect(db)
             self.assertEqual(con.execute("SELECT count(*) FROM fields").fetchone()[0],19)
             self.assertEqual(con.execute("SELECT count(*) FROM records").fetchone()[0],6)
