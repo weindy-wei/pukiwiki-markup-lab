@@ -130,3 +130,16 @@ button:focus-visible,input:focus-visible,select:focus-visible,label:focus-within
 @media(max-width:1050px){.fw-shell{grid-template-columns:210px minmax(0,1fr)}.fw-topbar{padding:0 26px}.fw-content{padding:35px 24px}.fw-kpi-grid{gap:9px}.fw-kpi{padding:17px 15px}.fw-header h1{font-size:26px}}
 @media(max-width:760px){.fw-shell{display:block}.fw-sidebar{min-height:auto;padding:14px 15px}.fw-brand{padding:0 0 14px}.fw-workspace-kicker,.fw-project-tile,.fw-nav-label,.fw-sidebar-bottom{display:none}.fw-sheets{display:flex;overflow-x:auto;gap:4px;padding-bottom:4px}.fw-sheet-link{width:auto;flex:none;white-space:nowrap;padding:8px 12px}.fw-sheet-count{margin-left:3px}.fw-topbar{height:62px;padding:0 17px}.fw-mode-chip{display:none}.fw-content{padding:27px 15px}.fw-header{align-items:start;display:block;margin-bottom:22px}.fw-head-meta{max-width:100%;text-align:left;margin-top:15px}.fw-kpi-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;margin-bottom:19px}.fw-kpi{min-height:110px}.fw-kpi strong{font-size:25px;margin:12px 0 8px}.fw-board-top,.fw-filters{padding:14px}.fw-filters{flex-wrap:wrap}.fw-search{flex:1 0 100%;max-width:none}.fw-board-top{align-items:start}.fw-view-btn{padding:7px}.fw-select-label{display:none}.fw-status-filter{width:140px}.fw-column-options{padding:13px}.fw-thumbnail-grid{padding:12px;gap:12px;grid-template-columns:repeat(2,minmax(0,1fr))}.fw-shot-card .fw-card-body{padding:12px}.fw-detail-wrap{padding:12px}.fw-detail-section{padding:16px}.fw-properties{grid-template-columns:110px 1fr;gap:0 9px}.fw-page-footer{display:block;line-height:2}}
 @media(max-width:440px){.fw-thumbnail-grid{grid-template-columns:1fr}.fw-board-top{display:block}.fw-board-heading{margin-bottom:12px}.fw-header h1{font-size:24px}}
+
+/* Step 24: local read-only API access panel */
+.fw-api-toggle{font-size:12px;white-space:nowrap;border-color:#d5dfeb;color:#446788}
+.fw-api-panel{background:#edf4fc;border:1px solid #cfdded;padding:19px 22px;margin-bottom:24px;border-radius:8px;display:grid;gap:13px;grid-template-columns:1fr minmax(280px,410px);align-items:center}
+.fw-api-panel[hidden]{display:none}
+.fw-api-panel strong{color:#315576;font-size:14px}
+.fw-api-panel p{font-size:12px;line-height:1.75;margin:5px 0 0;color:#6e829b}
+.fw-api-form{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.fw-api-form label{font-size:11px;color:#607d9a;flex-basis:100%}
+.fw-api-form input{flex:1 1 190px;min-width:140px;font-size:12px}
+.fw-api-form button{font-size:12px;white-space:nowrap}
+.fw-api-status{font-size:11px;color:#687e96;grid-column:1/-1}
+@media(max-width:760px){.fw-api-panel{grid-template-columns:1fr;padding:16px}.fw-api-toggle{padding:8px;font-size:11px}.fw-api-status{grid-column:auto}}
