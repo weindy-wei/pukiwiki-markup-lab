@@ -41,7 +41,7 @@ function plugin_tabletpl_compile($args)
     }
     $definition = json_decode(file_get_contents($filename), true);
     if (!is_array($definition) || !isset($definition['id'], $definition['version'],
-        $definition['fields'], $definition['rows'], $definition['columns']) ||
+        $definition['fields'], $definition['columns']) ||
         $definition['id'] !== $id || !in_array($definition['version'], array(1, 2), true) ||
         !is_int($definition['columns']) || $definition['columns'] < 2 ||
         $definition['columns'] > 8 || !is_array($definition['fields']) ||
