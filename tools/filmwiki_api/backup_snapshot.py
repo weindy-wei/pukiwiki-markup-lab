@@ -37,7 +37,9 @@ def backup_snapshot(db_path,local_root,nas_backup_root):
     manifest=nas/(name+".json")
     if final.exists() or manifest.exists():
         raise FileExistsError("Refusing to replace existing NAS backup")
-    local_tmp=Path(tempfile.mkstemp(prefix=".filmwiki-backup-",suffix=".sqlite",dir=local_root)[1])
+    descriptor,temp_path=tempfile.mkstemp(prefix=".filmwiki-backup-",suffix=".sqlite",dir=local_root)
+    os.close(descriptor)
+    local_tmp=Path(temp_path)
     remote_tmp=nas/("."+name+".partial-"+str(os.getpid()))
     try:
         with closing(sqlite3.connect(source.as_uri()+"?mode=ro",uri=True,timeout=10)) as original:
