@@ -43,6 +43,18 @@ Expected: The Great Sword cell spans two columns.
 
 Expected: A table with header cells.
 
+## Test 5: Cell Alignment
+
+```text
+|LEFT:Weapon|RIGHT:Attack|
+|LEFT:Great Sword|RIGHT:120|
+```
+
+Expected: The first column is left-aligned,
+and the second column is right-aligned.
+
+Runtime rendering test is pending.
+
 ## Reference
 
 Upstream: https://github.com/pukiwiki/pukiwiki
