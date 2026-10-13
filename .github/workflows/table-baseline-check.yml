@@ -9,6 +9,8 @@ on:
       - "docs/architecture/table-templates-v1.md"
       - "web/filmwiki/**"
       - "tests/filmwiki_ui.test.mjs"
+      - "tests/filmwiki_api_client.test.mjs"
+      - "tools/filmwiki_api/**"
       - ".github/workflows/table-baseline-check.yml"
   push:
     branches: [master]
@@ -20,6 +22,8 @@ on:
       - "docs/architecture/table-templates-v1.md"
       - "web/filmwiki/**"
       - "tests/filmwiki_ui.test.mjs"
+      - "tests/filmwiki_api_client.test.mjs"
+      - "tools/filmwiki_api/**"
       - ".github/workflows/table-baseline-check.yml"
   workflow_dispatch:
 
@@ -38,7 +42,7 @@ jobs:
         with:
           node-version: "22"
       - name: Check FilmWiki read-only view model (Node offline)
-        run: node --test tests/filmwiki_ui.test.mjs
+        run: node --test tests/filmwiki_ui.test.mjs tests/filmwiki_api_client.test.mjs
       - name: Check Python syntax
         run: python -m compileall -q tests/markup
       - name: Validate five documented cases (offline)
