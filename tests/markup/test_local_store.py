@@ -74,7 +74,7 @@ class LocalStoreTests(unittest.TestCase):
             self.assertEqual(len(view["rows"]),6)
             self.assertIsNone(view["rows"][0]["values"][1])
             self.assertEqual(view["rows"][0]["values"][0],"SC_01")
-            self.assertEqual(view["rows"][1]["values"][2],"12-18 秒")
+            self.assertEqual(view["rows"][0]["values"][2],"12-18 秒")
             self.assertEqual(view["rows"][2]["values"][0],"SC_06")
             changed=copy.deepcopy(source)
             changed["sheets"][0]["records"][0]["cells"][1]["value"]="altered"
