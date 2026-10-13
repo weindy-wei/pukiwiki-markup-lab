@@ -65,7 +65,7 @@ export class ProjectClient {
       data.project_id===projectId && data.sheet_index===sheet &&
       Array.isArray(data.records) && Array.isArray(data.asset_references) &&
       data.records.length<=limit && typeof data.has_more==="boolean" &&
-      ((data.has_more && CURSOR.test(data.next_cursor)) ||
+      ((data.has_more && typeof data.next_cursor==="string" && CURSOR.test(data.next_cursor)) ||
        (!data.has_more && data.next_cursor===null)),"服务器分页结果不一致");
     return data;
   }
