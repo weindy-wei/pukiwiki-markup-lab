@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="zh-CN" data-bs-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src http://127.0.0.1:8091; form-action 'none'; object-src 'none'; base-uri 'none'">
+<title>FilmWiki · 多项目数据库</title>
+<link rel="stylesheet" href="./vendor/tabler/css/tabler.min.css">
+<link rel="stylesheet" href="./style.css">
+<link rel="stylesheet" href="./live.css">
+</head>
+<body>
+<div class="fw-shell">
+  <aside class="fw-sidebar">
+    <div class="fw-brand"><div class="fw-symbol">F<span>W</span></div><div><strong>FilmWiki</strong><small>DATA WORKSPACE</small></div></div>
+    <div class="fw-workspace-kicker">私有项目</div>
+    <label class="live-select-label" for="project-select">项目切换</label>
+    <select id="project-select" class="form-select live-project-select" disabled aria-label="选择 FilmWiki 项目"><option>请先连接本地 API</option></select>
+    <div class="fw-nav-label live-nav-label">项目工作表</div>
+    <nav id="sheet-nav" class="fw-sheets" aria-label="工作表"></nav>
+    <div class="fw-sidebar-bottom">
+      <div class="fw-local-indicator"><span></span> WSL 本机数据库</div>
+      <div class="fw-sidebar-caption">只读分页。令牌只在浏览器内存中，不通过 URL 或本地存储保存。</div>
+    </div>
+  </aside>
+  <div class="fw-main">
+    <header class="fw-topbar">
+      <div class="fw-crumbs"><a href="./index.html">FILMWIKI</a><span class="fw-crumb-separator">/</span><strong id="breadcrumbs">多项目查询</strong></div>
+      <div class="fw-top-actions"><span class="fw-mode-chip">LOCAL · READ ONLY</span><a class="btn btn-outline-secondary btn-sm" href="./index.html">返回原预览</a></div>
+    </header>
+    <main class="fw-content">
+      <section class="live-connect" id="connection-panel">
+        <div><div class="fw-overline"><span class="fw-line"></span> PRIVATE DATA SOURCE</div>
+        <h1>连接本地项目数据库</h1>
+        <p>读取仅限本机的 FilmWiki API（127.0.0.1:8091）。项目必须由服务端白名单授权，不支持输入数据库文件路径。</p></div>
+        <form id="connect-form" class="live-connect-form">
+          <label for="token-input">本地访问令牌</label>
+          <div class="live-connect-controls">
+            <input id="token-input" class="form-control" type="password" placeholder="粘贴 API 令牌" autocomplete="off" spellcheck="false" required>
+            <button class="btn btn-primary" type="submit" id="connect-button">只读连接</button>
+          </div>
+        </form>
+      </section>
+      <section class="fw-header live-workspace-header">
+        <div><div class="fw-overline"><span class="fw-line"></span> PROJECT INTELLIGENCE</div>
+          <h1 id="sheet-title">等待连接</h1>
+          <p id="sheet-description">服务器端分页、字段查询和记录详情，无需预先下载整个工作簿。</p>
+        </div>
+        <div class="fw-head-meta"><span id="source-name">未连接</span><span id="source-mode">PRIVATE API V2</span></div>
+      </section>
+      <section class="fw-kpi-grid">
+        <div class="fw-kpi"><span>PROJECTS · 项目</span><strong id="kpi-projects">0</strong><small>本机授权项目</small></div>
+        <div class="fw-kpi"><span>RECORDS · 原表记录</span><strong id="kpi-records">—</strong><small>当前工作表规模</small></div>
+        <div class="fw-kpi"><span>FIELDS · 字段</span><strong id="kpi-fields">0</strong><small>完整字段结构</small></div>
+        <div class="fw-kpi"><span>LOADED · 本页记录</span><strong id="kpi-loaded">0</strong><small>按需查询，不全量加载</small></div>
+      </section>
+      <section class="fw-board">
+        <div class="fw-board-top">
+          <div class="fw-board-heading"><h2 id="board-title">记录查询</h2><span id="result-count" class="fw-count">0 records</span></div>
+          <div class="fw-views" role="group" aria-label="切换数据视图">
+            <button id="view-grid" type="button" class="fw-view-btn is-active" aria-pressed="true">▤ Grid</button>
+            <button id="view-thumb" type="button" class="fw-view-btn" aria-pressed="false">▦ Thumbnail</button>
+            <button id="view-detail" type="button" class="fw-view-btn" aria-pressed="false">▤ Detail</button>
+          </div>
+        </div>
+        <form id="query-form" class="fw-filters live-query" autocomplete="off">
+          <label class="fw-search"><span aria-hidden="true">⌕</span><input id="search" type="search" placeholder="服务器搜索（最多 80 字）" maxlength="80" aria-label="查询所有字段"></label>
+          <select id="filter-field" class="form-select live-field" aria-label="精确筛选字段"><option value="">全部字段</option></select>
+          <input id="filter-value" class="form-control live-value" type="text" placeholder="精确值" maxlength="160" aria-label="字段精确匹配值" disabled>
+          <button type="submit" class="btn btn-primary">查询</button>
+          <button type="button" id="reset-query" class="btn btn-outline-secondary">清除</button>
+        </form>
+        <div id="message" role="status" aria-live="polite" class="fw-message"></div>
+        <div id="view-content" class="fw-view-content"></div>
+        <div class="live-pager">
+          <button id="previous-page" type="button" class="btn btn-outline-secondary btn-sm" disabled>← 上一页</button>
+          <span id="page-info">第 1 页</span>
+          <button id="next-page" type="button" class="btn btn-outline-secondary btn-sm" disabled>下一页 →</button>
+        </div>
+        <div class="fw-board-footer"><span id="footer-count">等待连接</span><span>只读 · 页面查询 · 不修改源记录</span></div>
+      </section>
+      <footer class="fw-page-footer"><span>FILMWIKI / QUERY ENGINE v0.1</span><span>项目是白名单，记录按游标读取。</span></footer>
+    </main>
+  </div>
+</div>
+<script type="module" src="./live-app.js"></script>
+</body>
+</html>
