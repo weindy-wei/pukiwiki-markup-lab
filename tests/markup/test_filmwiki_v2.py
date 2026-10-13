@@ -115,7 +115,7 @@ class V2Tests(unittest.TestCase):
         self.assertEqual([r["source_row"] for r in second["records"]],[6,8])
         with self.assertRaises(ValueError):read_page(p,TOKEN,1,limit=2,field=5,value="奇数",cursor=first["next_cursor"])
         with self.assertRaises(ValueError):read_page(self.projects["demo-b"],TOKEN,1,limit=2,cursor=first["next_cursor"])
-        altered=first["next_cursor"][:-1]+("A" if first["next_cursor"][-1]!="A" else "B")
+        altered=first["next_cursor"][:12]+("A" if first["next_cursor"][12]!="A" else "B")+first["next_cursor"][13:]
         with self.assertRaises(ValueError):read_page(p,TOKEN,1,limit=2,field=5,value="偶数",cursor=altered)
         result=read_page(p,TOKEN,1,limit=5,q="特殊%_")
         self.assertEqual([x["source_row"] for x in result["records"]],[4])
