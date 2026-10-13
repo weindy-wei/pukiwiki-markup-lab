@@ -273,7 +273,7 @@ def initialize_token(path):
     if not path.is_absolute() or path.is_symlink():
         raise ValueError("Token path must be absolute and not a symlink")
     path.parent.mkdir(parents=True,exist_ok=True)
-    with path.open("x",encoding="utf-8",opener=lambda p,f:__import__("os").open(p,f,0o600)) as out:
+    with open(path,"x",encoding="utf-8",opener=lambda p,f:__import__("os").open(p,f,0o600)) as out:
         out.write(secrets.token_urlsafe(48)+"\n")
     print("Token generated at specified private path (value not displayed).")
 
