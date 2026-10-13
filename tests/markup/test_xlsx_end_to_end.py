@@ -32,7 +32,7 @@ def excel_col(n):
 def make_workbook(path):
     headers=["镜头号"]+["字段"+str(n) for n in range(2,17)]+["父记录"]
     worksheet=['<worksheet xmlns="'+NS+'"><sheetData>',
-               '<row r="1">'+''.join(cell(excel_col(n),h) for n,h in enumerate(headers,1))+'</row>']
+               '<row r="1">'+''.join(cell(excel_col(n)+"1",h) for n,h in enumerate(headers,1))+'</row>']
     for i,shot,parent in [(2,"SC_06",None),(3,"SC_06",None),(4,"SC_06_01","SC_06")]:
         entries=[cell("A"+str(i),shot)]
         if i==2:
