@@ -76,3 +76,28 @@ test("reject server project confusion, bad cursor, impossible page",async()=>{
  client.disconnect();
  await assert.rejects(()=>client.projects(),/令牌/);
 });
+
+test("default browser fetch uses Window/global receiver rather than ProjectClient",async()=>{
+  // Native Window.fetch implementations may throw "Illegal invocation" if
+  // called as client.fetcher(...). Simulate that browser receiver restriction.
+  const native=globalThis.fetch;
+  const seen=[];
+  globalThis.fetch=async function(url,options){
+    assert.equal(this,globalThis,"fetch must keep the browser global receiver");
+    assert.equal(options.method,"GET");
+    assert.equal(options.headers.Authorization,"Bearer "+"t".repeat(64));
+    seen.push(url);
+    return {ok:true,status:200,json:async()=>({
+      format:"filmwiki-project-list",version:2,projects
+    })};
+  };
+  try{
+    const client=new ProjectClient();
+    client.authenticate("t".repeat(64));
+    const list=await client.projects();
+    assert.equal(list.length,2);
+    assert.equal(seen.length,1);
+  }finally{
+    globalThis.fetch=native;
+  }
+});
