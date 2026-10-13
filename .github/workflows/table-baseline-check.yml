@@ -40,3 +40,4 @@ jobs:
         run: |
           docker run --rm --network none -v "$PWD:/code:ro" -w /code php:8.1-fpm php -l plugin/tabletpl.inc.php
           docker run --rm --network none -v "$PWD:/code:ro" -w /code php:8.1-fpm php tests/markup/check_tabletpl_compiler.php
+          docker run --rm --network none -v "$PWD:/code:ro" -w /code php:8.1-fpm php tests/markup/check_tabletpl_v2.php
