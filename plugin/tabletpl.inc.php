@@ -45,8 +45,9 @@ function plugin_tabletpl_compile($args)
         $definition['id'] !== $id || !in_array($definition['version'], array(1, 2), true) ||
         !is_int($definition['columns']) || $definition['columns'] < 2 ||
         $definition['columns'] > 8 || !is_array($definition['fields']) ||
-        !is_array($definition['rows']) || count($definition['fields']) > 16 ||
-        count($definition['rows']) < 1 || count($definition['rows']) > 32) {
+        count($definition['fields']) > 16 ||
+        ($definition['version'] === 1 && (!is_array($definition['rows']) ||
+        count($definition['rows']) < 1 || count($definition['rows']) > 32))) {
         throw new InvalidArgumentException('Invalid template schema');
     }
     if ($definition['version'] === 2) {
