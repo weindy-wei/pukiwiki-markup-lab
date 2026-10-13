@@ -68,9 +68,9 @@ def list_projects(projects):
 
 
 def describe_project(project):
-    return {"format":"filmwiki-project-manifest","version":2,
-            "project":{"id":project["id"],"title":project["title"]},
-            **project["manifest"]}
+    return {**project["manifest"],
+            "format":"filmwiki-project-manifest","version":2,
+            "project":{"id":project["id"],"title":project["title"]}}
 
 
 def _signature(secret,payload):
