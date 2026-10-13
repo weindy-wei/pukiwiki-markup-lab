@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-bs-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="referrer" content="no-referrer" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' blob: data:; font-src 'self'; connect-src 'none'; form-action 'none'; base-uri 'none'; object-src 'none'; frame-ancestors 'none'" />
+  <title>FilmWiki · Production Workspace</title>
+  <link rel="stylesheet" href="./vendor/tabler/css/tabler.min.css" />
+  <link rel="stylesheet" href="./style.css" />
+</head>
+<body>
+  <div class="fw-shell">
+    <aside class="fw-sidebar">
+      <div class="fw-brand">
+        <div class="fw-symbol" aria-hidden="true">F<span>W</span></div>
+        <div><strong>FilmWiki</strong><small>PRODUCTION WORKSPACE</small></div>
+      </div>
+      <div class="fw-workspace-kicker">工作空间</div>
+      <div class="fw-project-tile">
+        <div class="fw-project-avatar">01</div>
+        <div><strong id="project-name">本地项目</strong><small id="project-source">演示工作簿</small></div>
+      </div>
+      <div class="fw-nav-label">项目数据表</div>
+      <nav id="sheet-nav" class="fw-sheets" aria-label="工作表导航"></nav>
+      <div class="fw-sidebar-bottom">
+        <div class="fw-local-indicator"><span></span> 仅本地读取</div>
+        <div class="fw-sidebar-caption">数据只在浏览器内解析，不上传到服务器。附件缺失时不会自动匹配。</div>
+      </div>
+    </aside>
+    <div class="fw-main">
+      <header class="fw-topbar">
+        <div class="fw-crumbs"><span>FILMWIKI</span><span class="fw-crumb-separator">/</span><strong id="breadcrumb-sheet">第1集</strong></div>
+        <div class="fw-top-actions">
+          <span class="fw-mode-chip">READ ONLY</span>
+          <label class="btn btn-primary fw-import-button" for="import-json">导入 JSON <span aria-hidden="true">↗</span></label>
+          <input id="import-json" class="visually-hidden" type="file" accept=".json,application/json" aria-label="选择 FilmWiki JSON 文件" />
+        </div>
+      </header>
+      <main class="fw-content">
+        <div class="fw-header">
+          <div>
+            <div class="fw-overline"><span class="fw-line"></span> PROJECT INTELLIGENCE</div>
+            <h1 id="sheet-title">第1集</h1>
+            <p id="sheet-description">管理镜头计划、资产引用和生产信息。</p>
+          </div>
+          <div class="fw-head-meta"><span id="filename">合成演示数据</span><span id="source-mode">演示模式</span></div>
+        </div>
+
+        <section class="fw-kpi-grid" aria-label="工作表统计">
+          <div class="fw-kpi"><span>RECORDS · 记录</span><strong id="kpi-records">0</strong><small>原始记录数量</small></div>
+          <div class="fw-kpi"><span>FIELDS · 字段</span><strong id="kpi-fields">0</strong><small>完整底层结构</small></div>
+          <div class="fw-kpi"><span>EMPTY · 空值</span><strong id="kpi-empty">0</strong><small>不丢弃空单元格</small></div>
+          <div class="fw-kpi"><span>REVIEW · 待确认</span><strong id="kpi-review">0</strong><small>关联和附件</small></div>
+        </section>
+
+        <section class="fw-board">
+          <div class="fw-board-top">
+            <div class="fw-board-heading"><h2 id="board-title">镜头记录</h2><span id="result-count" class="fw-count">0 records</span></div>
+            <div class="fw-board-actions">
+              <div class="fw-views" role="group" aria-label="视图模式">
+                <button id="view-grid" type="button" class="fw-view-btn is-active" aria-pressed="true">▤ <span>Grid</span></button>
+                <button id="view-thumb" type="button" class="fw-view-btn" aria-pressed="false">▦ <span>Thumbnail</span></button>
+                <button id="view-detail" type="button" class="fw-view-btn" aria-pressed="false">▤ <span>Detail</span></button>
+              </div>
+            </div>
+          </div>
+          <div class="fw-filters">
+            <label class="fw-search"><span aria-hidden="true">⌕</span><input id="search" type="search" placeholder="搜索镜头、场景或备注…" aria-label="搜索当前工作表" autocomplete="off" /></label>
+            <label class="fw-select-label" for="status-filter">状态</label>
+            <select id="status-filter" class="form-select fw-status-filter" aria-label="按状态筛选"><option value="">全部状态</option></select>
+            <button id="column-button" class="btn btn-outline-secondary" type="button" aria-expanded="false" aria-controls="column-options">显示列 <span aria-hidden="true">⌄</span></button>
+          </div>
+          <div id="column-options" class="fw-column-options" hidden aria-label="选择 Grid 显示字段"></div>
+          <div id="message" class="fw-message" role="status" aria-live="polite"></div>
+          <div id="view-content" class="fw-view-content"></div>
+          <div class="fw-board-footer"><span id="footer-count"></span><span>只读预览 · 无自动写入</span></div>
+        </section>
+        <footer class="fw-page-footer"><span>FILMWIKI · LOCAL FIRST</span><span>数据属于创作者，不属于平台。</span></footer>
+      </main>
+    </div>
+  </div>
+  <script type="module" src="./app.js"></script>
+</body>
+</html>
