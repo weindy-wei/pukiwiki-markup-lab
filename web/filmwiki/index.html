@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="referrer" content="no-referrer" />
-  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' blob: data:; font-src 'self'; connect-src 'none'; form-action 'none'; base-uri 'none'; object-src 'none'; frame-ancestors 'none'" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' blob: data:; font-src 'self'; connect-src http://127.0.0.1:8091; form-action 'none'; base-uri 'none'; object-src 'none'; frame-ancestors 'none'" />
   <title>FilmWiki · Production Workspace</title>
   <link rel="stylesheet" href="./vendor/tabler/css/tabler.min.css" />
   <link rel="stylesheet" href="./style.css" />
@@ -25,7 +25,7 @@
       <nav id="sheet-nav" class="fw-sheets" aria-label="工作表导航"></nav>
       <div class="fw-sidebar-bottom">
         <div class="fw-local-indicator"><span></span> 仅本地读取</div>
-        <div class="fw-sidebar-caption">数据只在浏览器内解析，不上传到服务器。附件缺失时不会自动匹配。</div>
+        <div class="fw-sidebar-caption">支持本地 JSON 或受令牌保护的只读 API。数据不发送到外部平台，附件缺失时不自动匹配。</div>
       </div>
     </aside>
     <div class="fw-main">
@@ -33,11 +33,24 @@
         <div class="fw-crumbs"><span>FILMWIKI</span><span class="fw-crumb-separator">/</span><strong id="breadcrumb-sheet">第1集</strong></div>
         <div class="fw-top-actions">
           <span class="fw-mode-chip">READ ONLY</span>
+          <button id="api-toggle" type="button" class="btn btn-outline-secondary fw-api-toggle" aria-controls="api-panel" aria-expanded="false">连接本地数据库</button>
           <label class="btn btn-primary fw-import-button" for="import-json">导入 JSON <span aria-hidden="true">↗</span></label>
           <input id="import-json" class="visually-hidden" type="file" accept=".json,application/json" aria-label="选择 FilmWiki JSON 文件" />
         </div>
       </header>
       <main class="fw-content">
+        <section id="api-panel" class="fw-api-panel" aria-label="私有数据连接" hidden>
+          <div>
+            <strong>私有只读数据库</strong>
+            <p>仅连接本机 127.0.0.1:8091。访问令牌只在当前连接请求的内存中使用，不存储在浏览器。</p>
+          </div>
+          <form id="api-form" class="fw-api-form">
+            <label for="api-token">本地 API 访问令牌</label>
+            <input id="api-token" type="password" class="form-control" placeholder="粘贴本地私有令牌" autocomplete="off" spellcheck="false" required />
+            <button id="api-connect-now" type="submit" class="btn btn-primary">只读连接</button>
+          </form>
+          <div id="api-status" class="fw-api-status" role="status" aria-live="polite">不连接云端，不修改 SQLite 数据。</div>
+        </section>
         <div class="fw-header">
           <div>
             <div class="fw-overline"><span class="fw-line"></span> PROJECT INTELLIGENCE</div>

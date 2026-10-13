@@ -2,6 +2,7 @@ import {
   parseSnapshot, demoSnapshot, display, isEmpty, preferredColumns,
   rowLabel, rowSubtitle, filterRecords, sheetSummary, recordDetail, getValue
 } from "./model.js";
+import { readLocalSnapshot } from "./api-client.js";
 
 const $ = (id) => document.getElementById(id);
 const MAX_FILE_BYTES = 20 * 1024 * 1024;
@@ -15,7 +16,8 @@ const state = {
   selectedId: null,
   page: 0,
   columnsOpen: false,
-  imported: false
+  imported: false,
+  apiConnected: false
 };
 const PER_PAGE = { grid: 50, thumb: 24, detail: 1 };
 
@@ -94,9 +96,9 @@ function renderHeader() {
     : "此工作表暂无数据记录，原始字段结构已经保留。";
   const source = state.snapshot.source;
   $("project-name").textContent = "FilmWiki 项目";
-  $("project-source").textContent = state.imported ? "已载入本地数据" : "示例工作空间";
+  $("project-source").textContent = state.apiConnected ? "NAS 私有数据 · 只读" : (state.imported ? "已载入本地 JSON" : "示例工作空间");
   $("filename").textContent = source.filename ?? "本地导出";
-  $("source-mode").textContent = state.imported ? "本地数据 · 未上传" : "合成演示数据";
+  $("source-mode").textContent = state.apiConnected ? "本地 API · 只读" : (state.imported ? "本地 JSON · 未上传" : "合成演示数据");
   const info = sheetSummary(s, sheetAssets());
   $("kpi-records").textContent = info.records;
   $("kpi-fields").textContent = info.fields;
@@ -320,6 +322,7 @@ async function importFile(file) {
     const parsed=parseSnapshot(JSON.parse(text));
     state.snapshot=parsed;
     state.imported=true;
+    state.apiConnected=false;
     state.mode="grid";
     initializeSheet(0);
     setMessage("");
@@ -328,6 +331,39 @@ async function importFile(file) {
     setMessage("导入失败："+(error instanceof Error?error.message:"无效 JSON"));
   }
 }
+$("api-toggle").addEventListener("click", () => {
+  const panel=$("api-panel");
+  panel.hidden=!panel.hidden;
+  $("api-toggle").setAttribute("aria-expanded",String(!panel.hidden));
+  if(!panel.hidden) $("api-token").focus();
+});
+$("api-form").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const token=$("api-token").value.trim();
+  const submit=$("api-connect-now");
+  submit.disabled=true;
+  $("api-status").textContent="正在从本地私有数据库读取记录…";
+  try {
+    const snapshot=await readLocalSnapshot(token);
+    state.snapshot=snapshot;
+    state.imported=true;
+    state.apiConnected=true;
+    state.mode="grid";
+    initializeSheet(0);
+    $("api-token").value="";
+    $("api-panel").hidden=true;
+    $("api-toggle").setAttribute("aria-expanded","false");
+    $("api-status").textContent="连接成功；全部记录只读。";
+    setMessage("");
+  } catch(error) {
+    const message=error instanceof Error?error.message:"本地 API 连接失败";
+    $("api-status").textContent=message;
+    setMessage("连接未完成："+message+"。现有视图未被替换。");
+  } finally {
+    submit.disabled=false;
+  }
+});
+
 $("import-json").addEventListener("change", (event)=>importFile(event.target.files?.[0]));
 $("search").addEventListener("input",(event)=>{
   state.query=event.target.value;state.page=0;renderContent();
