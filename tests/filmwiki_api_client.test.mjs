@@ -65,3 +65,23 @@ test("rejects more than 5000 records before bulk fetch",async()=>{
   await assert.rejects(()=>readLocalSnapshot("t".repeat(64),fetcher),/5000/);
   assert.equal(calls.length,1);
 });
+
+test("legacy default fetch preserves native Window/global receiver",async()=>{
+  const before=globalThis.fetch;
+  const data=replies();
+  let calls=0;
+  globalThis.fetch=async function(url,opts){
+    assert.equal(this,globalThis,"native fetch requires browser global receiver");
+    assert.equal(opts.headers.Authorization,"Bearer "+"t".repeat(64));
+    calls++;
+    return {ok:true,status:200,json:async()=>data[url.slice(LOCAL_API.length)]};
+  };
+  try{
+    const snapshot=await readLocalSnapshot("t".repeat(64));
+    assert.equal(snapshot.sheets.length,2);
+    assert.equal(snapshot.sheets[0].records.length,2);
+    assert.equal(calls,2);
+  }finally{
+    globalThis.fetch=before;
+  }
+});
