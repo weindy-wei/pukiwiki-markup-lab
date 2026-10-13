@@ -148,6 +148,16 @@ class ApiTests(unittest.TestCase):
         self.assertEqual(self.db.read_bytes(),original)
         self.assertEqual(server.manifest(self.db,SHA)["source"]["sha256"],SHA)
 
+    def test_secure_token_creation_is_exclusive(self):
+        with tempfile.TemporaryDirectory() as folder:
+            path=Path(folder)/"credentials"/"token.txt"
+            server.initialize_token(path)
+            value=path.read_text(encoding="utf-8").strip()
+            self.assertGreaterEqual(len(value),40)
+            self.assertEqual(path.stat().st_mode & 0o777, 0o600)
+            with self.assertRaises(FileExistsError):
+                server.initialize_token(path)
+
     def test_startup_rejects_database_outside_data_root(self):
         with tempfile.TemporaryDirectory() as other:
             with self.assertRaises(ValueError):
