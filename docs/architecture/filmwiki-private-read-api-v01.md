@@ -4,7 +4,7 @@ The Tabler workspace can now read data from the owner's local NAS-backed SQLite 
 
 ## Security boundary
 
-- Database stored outside the PukiWiki webroot, e.g. X:/AI/FilmWiki/staging/project.sqlite (WSL: /mnt/nas/AI/FilmWiki/staging/project.sqlite).
+- **Primary live SQLite must be on a LOCAL filesystem**, e.g. WSL ext4 /home/administrator/filmwiki-data/staging/project.sqlite (folder 0700). A real attempt to initialize SQLite directly over SMB/CIFS X:/AI/FilmWiki failed with `database is locked`. Keep X:/AI/FilmWiki for originals, media and verified offline snapshots, not live queries.
 - Python stdlib-only API binds **127.0.0.1:8091** (not 0.0.0.0 and not a LAN/NAS service).
 - Startup requires a specific SQLite file inside --data-root, and a preselected source SHA-256. The HTTP client cannot supply filesystem paths or SQL.
 - SQLite opened in mode=ro plus PRAGMA query_only=ON; the API contains no write handlers.
@@ -22,9 +22,9 @@ The Tabler workspace can now read data from the owner's local NAS-backed SQLite 
 
 ## Running locally
 
-1. Authorize and stage a SQLite snapshot in a private NAS directory. For early tests create a **synthetic** demo dataset instead of copying a real workbook into the webroot.
+1. Authorize and stage a SQLite database on a private LOCAL filesystem (WSL ext4). For early tests create a **synthetic** demo dataset instead of copying a real workbook into the webroot.
 2. Create a token: python3 tools/filmwiki_api/server.py --init-token --token-file /PRIVATE/ONLY/api-token.txt
-3. Launch: python3 tools/filmwiki_api/server.py --data-root /mnt/nas/AI/FilmWiki --db /mnt/nas/AI/FilmWiki/staging/synthetic-step24.sqlite --source-sha SOURCE_SHA --token-file /PRIVATE/ONLY/api-token.txt --port 8091
+3. Launch: python3 tools/filmwiki_api/server.py --data-root /home/administrator/filmwiki-data --db /home/administrator/filmwiki-data/staging/synthetic-step24.sqlite --source-sha SOURCE_SHA --token-file /PRIVATE/ONLY/api-token.txt --port 8091
 4. In FilmWiki's local page at http://127.0.0.1:8080/filmwiki-preview/, choose **连接本地数据库** and paste the token from the private file. It is not saved by the browser.
 5. Or continue to use **导入 JSON** exactly as in Step 23.
 
@@ -36,3 +36,15 @@ The browser currently loads all pages (200 records per API call) into memory up 
 - Node tests mock the API and verify client paging, fail-closed behavior and 5,000-row guard.
 - Before production: authentication/ACL per user and project, TLS/secure gateway for remote access, CSRF/rate limits/monitoring, asset SHA-256 registry, server-side paging and actual data transfer authorization.
 - **Avoid serving any SQLite file or token via Nginx/PukiWiki**, even as a test.
+
+
+## Tested local deployment (WEINDY-PC)
+
+- WSL ext4 root: /home/administrator/filmwiki-data (0700).
+- Synthetic SQLite: /home/administrator/filmwiki-data/staging/synthetic-step24.sqlite, 7 sheets and 20 records. **NOT real user data**.
+- Token file: /home/administrator/filmwiki-data/private/api-token.txt (0600). Never print into support logs or GitHub.
+- systemd service: filmwiki-readapi.service, started as administrator; binds only 127.0.0.1:8091.
+- UI: http://127.0.0.1:8080/filmwiki-preview/
+- Windows PowerShell copy to clipboard without printing it: wsl.exe -d Ubuntu-26.04 -u administrator -- cat /home/administrator/filmwiki-data/private/api-token.txt | Set-Clipboard
+- NAS snapshots use tools/filmwiki_api/backup_snapshot.py. The script uses SQLite's online backup API on local ext4, validates PRAGMA integrity_check, then copies inert backup BYTES to NAS with SHA-256 verification. It never opens the network copy as a live SQLite database.
+- Backups are not yet scheduled; running the initial snapshot verifies the pipeline, but does not replace a tested recurring backup/restore policy.
