@@ -6,7 +6,7 @@ const CURSOR=/^[A-Za-z0-9_-]{1,380}$/;
 function check(test,message){if(!test)throw new Error(message);}
 
 export class ProjectClient {
-  constructor(fetcher=fetch){this.fetcher=fetcher;this.token=null;this.projectIds=new Set();}
+  constructor(fetcher=(...args)=>globalThis.fetch(...args)){this.fetcher=fetcher;this.token=null;this.projectIds=new Set();}
   authenticate(token){
     check(typeof token==="string" && token.length>=40 && token.length<=200,"本地令牌格式无效");
     this.token=token;
