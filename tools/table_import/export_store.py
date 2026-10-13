@@ -7,7 +7,9 @@ from pathlib import Path
 import sqlite3
 
 def export_snapshot(db_path,source_sha):
-    con=sqlite3.connect("file:"+str(Path(db_path).resolve())+"?mode=ro",uri=True)
+    resolved=Path(db_path).resolve(strict=True)
+    if not resolved.is_file(): raise ValueError("Expected existing SQLite database")
+    con=sqlite3.connect(resolved.as_uri()+"?mode=ro",uri=True)
     try:
         con.row_factory=sqlite3.Row
         imp=con.execute("SELECT * FROM imports WHERE source_sha256=?",(source_sha,)).fetchone()
