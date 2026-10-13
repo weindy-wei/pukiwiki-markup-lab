@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import {
   parseSnapshot, demoSnapshot, display, preferredColumns,
   rowLabel, filterRecords, sheetSummary, recordDetail
-} from "../web/filmwiki/model.mjs";
+} from "../web/filmwiki/model.js";
 
 test("synthetic FilmWiki snapshot supports wide records and duplicate shot names", () => {
   const raw=parseSnapshot(structuredClone(demoSnapshot));
