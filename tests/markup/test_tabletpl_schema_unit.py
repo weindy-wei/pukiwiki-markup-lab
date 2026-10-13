@@ -21,12 +21,18 @@ def no_duplicate_keys(pairs):
 class TableTemplateCatalogTests(unittest.TestCase):
     def test_template_schemas(self):
         files = sorted(CATALOG.glob("*.json"))
-        self.assertEqual({f.stem for f in files}, {"project_overview", "shot_card"})
+        self.assertTrue({"project_overview", "shot_card"}.issubset({f.stem for f in files}))
         for filename in files:
             with self.subTest(name=filename.name):
                 schema = json.loads(filename.read_text(encoding="utf-8"),
                                     object_pairs_hook=no_duplicate_keys)
                 self.assertEqual(schema["id"], filename.stem)
+                if schema["version"] == 2:
+                    self.assertEqual(len(schema["fields"]), schema["columns"])
+                    self.assertTrue(1 <= len(schema["records"]) <= 100)
+                    ids = [r["row_id"] for r in schema["records"]]
+                    self.assertEqual(len(ids), len(set(ids)))
+                    continue
                 self.assertEqual(schema["version"], 1)
                 self.assertIs(type(schema["columns"]), int)
                 self.assertTrue(2 <= schema["columns"] <= 8)

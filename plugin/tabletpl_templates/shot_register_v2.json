@@ -1,0 +1,57 @@
+{
+  "id": "shot_register_v2",
+  "version": 2,
+  "columns": 5,
+  "headers": [
+    "镜头ID",
+    "场次",
+    "镜头内容",
+    "时长秒",
+    "状态"
+  ],
+  "fields": [
+    {
+      "id": "shot",
+      "type": "text"
+    },
+    {
+      "id": "scene",
+      "type": "text"
+    },
+    {
+      "id": "action",
+      "type": "text"
+    },
+    {
+      "id": "duration",
+      "type": "number"
+    },
+    {
+      "id": "status",
+      "type": "enum",
+      "options": [
+        "待制作",
+        "制作中",
+        "已完成"
+      ]
+    }
+  ],
+  "records": [
+    {
+      "row_id": "sc02_sh001",
+      "shot": "SC02-001",
+      "scene": "SC02",
+      "action": "巷道远景",
+      "duration": "6",
+      "status": "已完成"
+    },
+    {
+      "row_id": "sc02_sh002",
+      "shot": "SC02-002",
+      "scene": "SC02",
+      "action": "人物跟拍",
+      "duration": "8.5",
+      "status": "制作中"
+    }
+  ]
+}
