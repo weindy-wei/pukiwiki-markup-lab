@@ -42,12 +42,18 @@ function plugin_tabletpl_compile($args)
     $definition = json_decode(file_get_contents($filename), true);
     if (!is_array($definition) || !isset($definition['id'], $definition['version'],
         $definition['fields'], $definition['rows'], $definition['columns']) ||
-        $definition['id'] !== $id || $definition['version'] !== 1 ||
+        $definition['id'] !== $id || !in_array($definition['version'], array(1, 2), true) ||
         !is_int($definition['columns']) || $definition['columns'] < 2 ||
         $definition['columns'] > 8 || !is_array($definition['fields']) ||
         !is_array($definition['rows']) || count($definition['fields']) > 16 ||
         count($definition['rows']) < 1 || count($definition['rows']) > 32) {
         throw new InvalidArgumentException('Invalid template schema');
+    }
+    if ($definition['version'] === 2) {
+        if (count($args) !== 1) {
+            throw new InvalidArgumentException('Dataset templates do not accept inline fields');
+        }
+        return plugin_tabletpl_compile_dataset($definition);
     }
     $fields = array();
     foreach ($definition['fields'] as $field) {
@@ -117,6 +123,83 @@ function plugin_tabletpl_compile($args)
     }
     if (count($used) !== count($fields)) {
         throw new InvalidArgumentException('Declared template fields are not used');
+    }
+    return implode("\n", $lines);
+}
+
+
+// v2: reviewed, variable-length JSON records with stable identifiers.
+// Never accepts filesystem paths, arbitrary Wiki markup, or user-controlled HTML.
+function plugin_tabletpl_compile_dataset($def)
+{
+    if (!isset($def['headers'], $def['records']) ||
+        !is_array($def['headers']) || !is_array($def['records']) ||
+        count($def['headers']) !== $def['columns'] ||
+        count($def['fields']) !== $def['columns'] ||
+        count($def['records']) < 1 || count($def['records']) > 100) {
+        throw new InvalidArgumentException('Invalid dataset schema');
+    }
+    $keys = array();
+    $types = array('text', 'number', 'date', 'enum', 'asset_ref');
+    foreach ($def['fields'] as $field) {
+        if (!is_array($field) || !isset($field['id'], $field['type']) ||
+            !is_string($field['id']) || !preg_match('/\A[a-z][a-z0-9_]{0,31}\z/D', $field['id']) ||
+            isset($keys[$field['id']]) || !in_array($field['type'], $types, true)) {
+            throw new InvalidArgumentException('Invalid dataset field');
+        }
+        if ($field['type'] === 'enum' &&
+            (!isset($field['options']) || !is_array($field['options']) ||
+             count($field['options']) < 1 || count($field['options']) > 16)) {
+            throw new InvalidArgumentException('Invalid enum options');
+        }
+        $keys[$field['id']] = $field;
+    }
+    $render = function ($value) {
+        if (!is_string($value) || $value === '' || strlen($value) > 240 ||
+            !preg_match('/\A[\p{L}\p{M}\p{N}\p{Zs}.,!?:;\/_+\-（）【】《》，。！？：；、·%]+\z/uD', $value) ||
+            preg_match('/\A(?:LEFT|RIGHT|CENTER|BOLD|COLOR|BGCOLOR|SIZE):/i', $value)) {
+            throw new InvalidArgumentException('Unsafe dataset text');
+        }
+        return $value;
+    };
+    $headers = array();
+    foreach ($def['headers'] as $header) {
+        $headers[] = '~' . $render($header);
+    }
+    $lines = array('|' . implode('|', $headers) . '|h');
+    $seen = array();
+    foreach ($def['records'] as $record) {
+        if (!is_array($record) || !isset($record['row_id']) ||
+            !is_string($record['row_id']) ||
+            !preg_match('/\A[a-zA-Z][a-zA-Z0-9_-]{0,63}\z/D', $record['row_id']) ||
+            isset($seen[$record['row_id']]) ||
+            count($record) !== count($keys) + 1) {
+            throw new InvalidArgumentException('Invalid or duplicate row ID');
+        }
+        $seen[$record['row_id']] = true;
+        $cells = array();
+        foreach ($keys as $name => $field) {
+            if (!array_key_exists($name, $record)) {
+                throw new InvalidArgumentException('Missing dataset field');
+            }
+            $v = $render($record[$name]);
+            if ($field['type'] === 'number' && !preg_match('/\A[0-9]+(?:\.[0-9]+)?\z/D', $v)) {
+                throw new InvalidArgumentException('Invalid number');
+            }
+            if ($field['type'] === 'date' &&
+                (!preg_match('/\A\d{4}-\d{2}-\d{2}\z/D', $v) ||
+                 !checkdate((int)substr($v, 5, 2), (int)substr($v, 8, 2), (int)substr($v, 0, 4)))) {
+                throw new InvalidArgumentException('Invalid date');
+            }
+            if ($field['type'] === 'enum' && !in_array($v, $field['options'], true)) {
+                throw new InvalidArgumentException('Invalid enum value');
+            }
+            if ($field['type'] === 'asset_ref' && !preg_match('/\Aasset_[a-f0-9]{64}\z/D', $v)) {
+                throw new InvalidArgumentException('Invalid asset reference');
+            }
+            $cells[] = $v;
+        }
+        $lines[] = '|' . implode('|', $cells) . '|';
     }
     return implode("\n", $lines);
 }
