@@ -4,12 +4,18 @@ on:
     paths:
       - "docs/markup/table-basics.md"
       - "tests/markup/**"
+      - "plugin/tabletpl.inc.php"
+      - "plugin/tabletpl_templates/**"
+      - "docs/architecture/table-templates-v1.md"
       - ".github/workflows/table-baseline-check.yml"
   push:
     branches: [master]
     paths:
       - "docs/markup/table-basics.md"
       - "tests/markup/**"
+      - "plugin/tabletpl.inc.php"
+      - "plugin/tabletpl_templates/**"
+      - "docs/architecture/table-templates-v1.md"
       - ".github/workflows/table-baseline-check.yml"
   workflow_dispatch:
 
@@ -30,3 +36,7 @@ jobs:
         run: python tests/markup/test_table_rendering.py --dry-run
       - name: Test runner safeguards and assertions (offline)
         run: python -m unittest discover -s tests/markup -p 'test_*.py' -v
+      - name: Compile and test table template plugin in PHP 8.1
+        run: |
+          docker run --rm --network none -v "$PWD:/code:ro" -w /code php:8.1-fpm php -l plugin/tabletpl.inc.php
+          docker run --rm --network none -v "$PWD:/code:ro" -w /code php:8.1-fpm php tests/markup/check_tabletpl_compiler.php

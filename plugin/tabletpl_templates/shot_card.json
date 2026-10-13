@@ -1,0 +1,10 @@
+{
+  "id": "shot_card",
+  "version": 1,
+  "columns": 4,
+  "fields": ["shot", "setting", "action", "duration"],
+  "rows": [
+    {"kind": "header", "cells": ["镜头编号", "拍摄场景", "镜头内容", "时长"]},
+    {"kind": "body", "cells": ["{{shot}}", "{{setting}}", "{{action}}", "{{duration}}"]}
+  ]
+}
