@@ -101,3 +101,20 @@ test("default browser fetch uses Window/global receiver rather than ProjectClien
     globalThis.fetch=native;
   }
 });
+
+test("Step26 numeric filter forwards explicit type and operator without coercion",async()=>{
+  const {fetcher,calls}=endpoints();const client=new ProjectClient(fetcher);
+  client.authenticate("t".repeat(64));await client.projects();
+  const page=await client.page("demo-a",{
+    sheet:1,field:3,value:"12.5",kind:"number",op:"ge",limit:10
+  });
+  assert.equal(page.records.length,2);
+  const request=calls.filter(url=>url.includes("/records?"))[0];
+  assert.ok(request.includes("field=3"),request);
+  assert.ok(request.includes("kind=number"),request);
+  assert.ok(request.includes("op=ge"),request);
+  assert.ok(request.includes("value=12.5"),request);
+  await assert.rejects(()=>client.page("demo-a",{
+    sheet:1,field:3,value:"abc",kind:"string",op:"gt"
+  }),/字段类型/);
+});
