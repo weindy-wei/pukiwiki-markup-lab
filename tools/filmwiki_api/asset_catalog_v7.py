@@ -104,7 +104,8 @@ def import_asset(root,identity_db,source,project_id,owner_user_id,filename,mime,
             file.write(data);file.flush();os.fsync(file.fileno())
         os.replace(temp,path)
         with closing(_connect(root)) as con:
-            con.execute("INSERT INTO assets VALUES(?,?,?,?,?,?,?,?,?)",
+            con.execute("INSERT INTO assets(asset_id,project_id,owner_user_id,original_filename,"
+                        "media_type,visibility,sha256,size,created_utc) VALUES(?,?,?,?,?,?,?,?,?)",
                 (asset_id,project_id,owner_user_id,filename,mime,visibility,digest,
                  len(data),datetime.now(timezone.utc).isoformat()))
             con.commit()
