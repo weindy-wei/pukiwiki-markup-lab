@@ -326,3 +326,23 @@ def audit(root,asset_id=None):
                     raise RuntimeError("Asset audit chain corrupted")
                 prior=row["event_hash"];total+=1
         return {"valid":True,"assets_with_events":len(ids),"events":total}
+
+
+def history(root,asset_id):
+    """Owner-local audit and version inventory; not exposed through HTTP."""
+    if not valid_id(asset_id):raise ValueError("Invalid asset ID")
+    with closing(_connect(root)) as c:
+        row=c.execute("SELECT * FROM assets WHERE asset_id=?",(asset_id,)).fetchone()
+        if row is None:raise ValueError("Unknown asset")
+        v=[dict(x) for x in c.execute("SELECT * FROM asset_versions WHERE asset_id=? "
+                                      "ORDER BY version",(asset_id,))]
+        events=[dict(x) for x in c.execute("SELECT * FROM asset_events WHERE asset_id=? "
+                                           "ORDER BY seq",(asset_id,))]
+        refs=[dict(x) for x in c.execute("SELECT * FROM asset_references WHERE asset_id=?",
+                                         (asset_id,))]
+    checked=audit(root,asset_id)
+    return {"asset":{"asset_id":row["asset_id"],"state":row["asset_state"],
+                     "current_version":row["current_version"],
+                     "pending_version":row["pending_version"],
+                     "deleted":row["deleted_at"] is not None},
+            "versions":v,"references":refs,"events":events,"audit":checked}
