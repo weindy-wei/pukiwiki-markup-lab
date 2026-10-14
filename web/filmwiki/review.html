@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'self'; script-src 'self'; connect-src 'self' http://127.0.0.1:8098; base-uri 'none'; form-action 'none'; frame-src 'none'; object-src 'none'">
+<title>FilmWiki · 附件审核待办（合成测试）</title>
+<link rel="stylesheet" href="./collab.css"></head><body>
+<header><strong>FILMWIKI <span>ASSET REVIEW</span></strong>
+<nav><a href="./collab.html">协作工作台</a><a href="/index.php?plugin=fwunified">Wiki 登录</a></nav></header>
+<main>
+<section class="card" id="login-panel">
+<h1>附件审核登录</h1>
+<p class="hint">此页面仅供本机合成项目测试。可复用已登录的 Wiki 会话，不使用浏览器持久存储。</p>
+<form id="login-form"><label for="username">账号</label><input id="username" autocomplete="username" required>
+<label for="password">密码</label><input type="password" id="password" autocomplete="current-password" required>
+<button type="submit">账号登录</button></form>
+<button type="button" id="sso-button">使用当前 Wiki 登录</button>
+</section>
+<section id="workspace" hidden>
+<div class="card"><h1>扫描队列与审批</h1>
+<p id="who"></p>
+<p class="hint">只有拥有审核角色的账号能处理待办。文件提交者即使拥有 Owner 权限也不能批准自己的提交。</p>
+<button type="button" id="refresh">刷新队列</button>
+<button type="button" id="logout">退出当前协作会话</button></div>
+<div class="cols"><section class="card"><h2>扫描任务</h2><div id="jobs"></div></section>
+<section class="card"><h2>待审核附件</h2><div id="inbox"></div></section></div>
+<div class="card"><h2>安全文本摘录（仅已扫描的纯文本）</h2>
+<pre id="preview"></pre>
+<p class="hint">不会在预览区域加载图片、视频、PDF、SVG 或任何附件原件。此页面只展示 API 返回的转义纯文本。</p></div>
+</section>
+<p id="feedback" role="status"></p>
+</main>
+<script src="./review.js" defer></script></body></html>
