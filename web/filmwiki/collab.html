@@ -1,0 +1,43 @@
+<!doctype html><html lang="zh-CN"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'self'; script-src 'self'; connect-src http://127.0.0.1:8098; base-uri 'none'; form-action 'none'; frame-ancestors 'none'">
+<title>FilmWiki · 多人协作实验台</title>
+<link rel="stylesheet" href="./collab.css"></head><body>
+<header><strong>FILMWIKI <span>COLLABORATION</span></strong><nav><a href="./live.html">只读工作台</a><a href="./editor.html">本机编辑</a></nav></header>
+<main>
+<div class="intro"><small>STEP 31 · AUTHENTICATED CO-EDITING</small><h1>多人协作与修订历史</h1>
+<p>独立合成项目。所有更改绑定登录作者；未获项目授权的账号不能浏览内容。此实验入口仅在当前电脑的 127.0.0.1 使用。</p></div>
+<section id="login-panel" class="card login">
+ <h2>协作账号登录</h2><form id="login-form" autocomplete="on">
+  <label for="username">用户名</label><input id="username" required autocomplete="username" placeholder="例如 editor01">
+  <label for="password">密码</label><input id="password" type="password" required autocomplete="current-password" minlength="12">
+  <button type="submit" class="primary" id="login-button">登录私有协作项目</button>
+ </form><small>账号由本机管理员创建；不提供公开注册。登录会话只保留在当前页面内存，刷新需要重新登录。</small>
+</section>
+<section id="workspace" hidden>
+ <div class="overview card"><div><small>登录账号</small><strong id="current-user"></strong></div>
+ <div><small>工作项目</small><strong id="project-name"></strong></div><div><small>我的权限</small><strong id="my-role"></strong></div>
+ <button id="logout" type="button">退出登录</button></div>
+ <div class="cols">
+  <section class="card">
+   <h2>工作表与记录</h2><label for="sheet">工作表</label><select id="sheet"></select>
+   <div class="search"><input id="search" placeholder="检索当前工作表" maxlength="80"><button id="run-search" type="button">搜索</button></div>
+   <div id="items" class="items"></div><div class="pager"><button id="previous" type="button">上一页</button><span id="page-number">第 1 页</span><button id="next" type="button">下一页</button></div>
+  </section>
+  <section class="card">
+   <h2>记录详情</h2><p id="selected" class="hint">选择左侧记录</p><div id="fields"></div>
+   <form id="edit-form" hidden>
+    <h3>提交带作者身份的修订</h3>
+    <label for="edit-field">可编辑字段</label><select id="edit-field"></select>
+    <label for="new-value">新文字</label><textarea id="new-value" maxlength="10000" rows="5"></textarea>
+    <label for="reason">修订原因</label><input id="reason" required minlength="3" maxlength="200" placeholder="例如：分镜审核后统一调整对白">
+    <button type="submit" class="primary" id="save">提交当前版本</button>
+   </form>
+  </section>
+  <section class="card"><h2>逐版本审计</h2><div id="history"></div></section>
+ </div>
+</section>
+<p id="feedback" role="status" aria-live="polite"></p>
+<footer>FILMWIKI STEP31 · PRIVATE SYNTHETIC PROJECT · USER ATTRIBUTION + VERSION CONTROL</footer>
+</main><script type="module" src="./collab.js"></script></body></html>
