@@ -1,0 +1,7 @@
+# Step32 restricted PukiWiki PHP read-only view of the SAME FilmWiki identity DB.
+# Only the PHP container sees it. Nginx cannot serve this volume.
+# Compose: docker compose -f compose.yaml -f compose.filmwiki-identity.yml up -d
+services:
+  php:
+    volumes:
+      - /home/administrator/filmwiki-data/private/collaboration-accounts.sqlite:/run/filmwiki/identity.sqlite:ro
