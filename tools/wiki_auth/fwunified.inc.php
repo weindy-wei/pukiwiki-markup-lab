@@ -7,7 +7,7 @@ function plugin_fwunified_action() {
     if (!function_exists('filmwiki_unified_login_password')) {
         require_once LIB_DIR . 'filmwiki_unified_bridge.php';
     }
-    if (session_status() !== PHP_SESSION_ACTIVE) session_start();
+    filmwiki_unified_session_start();
     $csrf = isset($_SESSION['filmwiki_csrf']) ? $_SESSION['filmwiki_csrf'] : null;
     if (!is_string($csrf) || strlen($csrf)!==64) {
         $csrf = bin2hex(random_bytes(32));
