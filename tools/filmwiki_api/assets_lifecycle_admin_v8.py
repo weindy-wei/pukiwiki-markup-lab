@@ -37,13 +37,16 @@ def main():
             sub.add_argument("--asset",required=(x=="history"))
     a=p.parse_args()
     from asset_security_v9 import setup_security,scan_pending
-    setup_security(ASSETS,ROOT)
+    from asset_queue_v10 import setup_queue,enqueue
+    setup_queue(ASSETS,ROOT)
     if a.action=="init":out={"state":"ready","assets_root":str(ASSETS)}
     elif a.action=="stage":
         out=stage_new(ASSETS,IDENTITY,Path(a.source),"demo-editor",a.actor,
                       a.name,a.mime,a.visibility)
+        out["scan_job"]=enqueue(ASSETS,IDENTITY,out["asset_id"],a.actor)
     elif a.action=="stage-revision":
         out=stage_revision(ASSETS,IDENTITY,Path(a.source),a.asset,a.actor,a.mime)
+        out["scan_job"]=enqueue(ASSETS,IDENTITY,out["asset_id"],a.actor)
     elif a.action=="scan":
         out=scan_pending(ASSETS,IDENTITY,a.asset,a.actor)
     elif a.action in ("approve","reject"):
