@@ -103,7 +103,7 @@ def _register(root,alias,release_path):
         raise ValueError("Unexpected existing projects; fail closed")
     if not all(p["id"] in ("demo-shortfilm","demo-longshots") for p in other):
         raise ValueError("Unexpected registered projects")
-    value={"id":alias,"title":"已发布合成分镜 · Step30",
+    value={"id":alias,"title":"已发布合成分镜 · "+release_path.stem[:8],
            "db":str(release_path.relative_to(root)), "source_sha":SOURCE_SHA}
     doc["projects"]=[*other,value]
     return doc
