@@ -6,10 +6,10 @@ sys.path.insert(0,str(ROOT/"tools/filmwiki_api"))
 from collab_auth import (create_store,create_user,grant,disable,setup_sso,
                          redeem_sso,session)
 KEY="abcdef0123456789"*4
-def make(sub,now,**patch):
+def make(subject,now,**patch):
     d={"v":1,"iss":"filmwiki-native-local","aud":"filmwiki-collab-local",
-       "sub":sub,"iat":now,"exp":now+45,"jti":hashlib.sha256(
-        (sub+str(now)+str(patch)).encode()).hexdigest()[:48]}
+       "sub":subject,"iat":now,"exp":now+45,"jti":hashlib.sha256(
+        (subject+str(now)+str(patch)).encode()).hexdigest()[:48]}
     d.update(patch)
     wire=base64.urlsafe_b64encode(json.dumps(d,separators=(",",":")).encode()).decode().rstrip("=")
     sig=hmac.new(bytes.fromhex(KEY),wire.encode(),hashlib.sha256).hexdigest()
