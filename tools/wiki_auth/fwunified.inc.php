@@ -29,7 +29,7 @@ function plugin_fwunified_action() {
         }
         $action = isset($_POST['action']) ? $_POST['action'] : '';
         if ($action==='logout') {
-            unset($_SESSION['filmwiki_unified_uid'],$_SESSION['filmwiki_unified_username'],
+            unset($_SESSION['filmwiki_unified_uid'],$_SESSION['filmwiki_unified_guard'],$_SESSION['filmwiki_unified_username'],
                   $_SESSION['authenticated_user'],$_SESSION['authenticated_user_fullname'],
                   $_SESSION['dynamic_member_groups']);
             session_regenerate_id(true);
@@ -58,6 +58,13 @@ function plugin_fwunified_action() {
                     // Session ID rotation prevents a login-fixation pivot.
                     session_regenerate_id(true);
                     $_SESSION['filmwiki_unified_uid']=$uid;
+                    $verified=filmwiki_unified_actor($uid);
+                    if (!$verified) {
+                        unset($_SESSION['filmwiki_unified_uid']);
+                        header('HTTP/1.1 503 Service Unavailable');
+                        return array('msg'=>'Identity unavailable','body'=>'Please retry later.');
+                    }
+                    $_SESSION['filmwiki_unified_guard']=$verified['session_guard'];
                     $_SESSION['filmwiki_unified_username']=$name;
                     $_SESSION['authenticated_user']=$name;
                     $_SESSION['authenticated_user_fullname']=$name;
