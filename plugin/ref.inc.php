@@ -414,6 +414,15 @@ function plugin_ref_action()
 
 	$page     = $vars['page'];
 	$filename = $vars['src'] ;
+	// Step33: managed attachments are quarantined until object-level ACL exists.
+	// No preview, even for signed-in members, and never return attachment bytes.
+	if (function_exists('filmwiki_unified_is_managed_page') &&
+	    filmwiki_unified_is_managed_page($page)) {
+		header('HTTP/1.1 403 Forbidden');
+		header('Cache-Control: no-store');
+		return array('msg'=>'Attachment access disabled', 'body'=>'Protected project attachments are disabled.');
+	}
+
 
 	$ref = UPLOAD_DIR . encode($page) . '_' . encode(preg_replace('#^.*/#', '', $filename));
 	if(! file_exists($ref))
