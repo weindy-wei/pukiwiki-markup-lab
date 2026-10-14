@@ -67,10 +67,17 @@
         <form id="query-form" class="fw-filters live-query" autocomplete="off">
           <label class="fw-search"><span aria-hidden="true">⌕</span><input id="search" type="search" placeholder="服务器搜索（最多 80 字）" maxlength="80" aria-label="查询所有字段"></label>
           <select id="filter-field" class="form-select live-field" aria-label="精确筛选字段"><option value="">全部字段</option></select>
-          <input id="filter-value" class="form-control live-value" type="text" placeholder="精确值" maxlength="160" aria-label="字段精确匹配值" disabled>
+          <select id="filter-kind" class="form-select live-kind" aria-label="筛选字段的数据类型"><option value="string">文字精确匹配</option><option value="number">数值比较</option></select>
+          <select id="filter-op" class="form-select live-op" aria-label="数值比较操作符" disabled>
+            <option value="eq">等于 =</option><option value="gt">大于 &gt;</option>
+            <option value="ge">大于等于 ≥</option><option value="lt">小于 &lt;</option>
+            <option value="le">小于等于 ≤</option>
+          </select>
+          <input id="filter-value" class="form-control live-value" type="text" placeholder="筛选值" maxlength="160" aria-label="字段筛选值" disabled>
           <button type="submit" class="btn btn-primary">查询</button>
           <button type="button" id="reset-query" class="btn btn-outline-secondary">清除</button>
         </form>
+        <div class="live-type-note">数值比较只匹配原始 JSON 数字，不会将“12–18 秒”等文本自动换算成数字。</div>
         <div id="message" role="status" aria-live="polite" class="fw-message"></div>
         <div id="view-content" class="fw-view-content"></div>
         <div class="live-pager">
