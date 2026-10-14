@@ -55,7 +55,8 @@ class IndexTests(unittest.TestCase):
         self.report=build_index(self.db,SHA,"demo",self.index,self.root)
         self.assertEqual(self.db.read_bytes(),self.old)
         self.assertTrue(validate_index(self.db,SHA,"demo",self.index))
-        self.project={"id":"demo","title":"合成","db":self.db,"source_sha":SHA,"index_db":self.index}
+        self.project={"id":"demo","title":"合成","db":self.db,"source_sha":SHA,"index_db":self.index,
+                      "source_stat":(self.db.stat().st_size,self.db.stat().st_mtime_ns)}
 
     def tearDown(self):self.temp.cleanup()
 
@@ -117,6 +118,8 @@ class IndexTests(unittest.TestCase):
         os.utime(self.db,ns=(self.db.stat().st_atime_ns,self.db.stat().st_mtime_ns+1000000))
         with self.assertRaises(ValueError):
             validate_index(self.db,SHA,"demo",self.index)
+        with self.assertRaises(sqlite3.DatabaseError):
+            read_indexed_page(self.project,TOKEN,1,q="镜头")
         self.assertEqual(self.db.read_bytes(),self.old)
 
 if __name__=="__main__":
