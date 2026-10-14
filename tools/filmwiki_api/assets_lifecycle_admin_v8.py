@@ -7,7 +7,7 @@ checked against real active project membership on every operation.
 import argparse,json,sqlite3
 from pathlib import Path
 from asset_lifecycle_v8 import (setup_lifecycle,stage_new,stage_revision,review,
-                                trash_restore,link,audit)
+                                trash_restore,link,audit,history)
 ROOT=Path("/home/administrator/filmwiki-data")
 IDENTITY=ROOT/"private/collaboration-accounts.sqlite"
 ASSETS=ROOT/"private/assets-step34"
@@ -17,7 +17,7 @@ def main():
     modes=p.add_subparsers(dest="action",required=True)
     modes.add_parser("init")
     for x in ("stage","stage-revision","approve","reject","soft-delete",
-              "restore","link","unlink","audit"):
+              "restore","link","unlink","audit","history"):
         sub=modes.add_parser(x)
         if x!="audit":
             sub.add_argument("--actor",required=True,help="Existing active user ID")
@@ -33,8 +33,8 @@ def main():
             sub.add_argument("--record",required=True)
             sub.add_argument("--relation",choices=("illustrates","reference","source"),
                              required=True)
-        if x=="audit":
-            sub.add_argument("--asset")
+        if x in ("audit","history"):
+            sub.add_argument("--asset",required=(x=="history"))
     a=p.parse_args()
     setup_lifecycle(ASSETS,ROOT)
     if a.action=="init":out={"state":"ready","assets_root":str(ASSETS)}
@@ -52,6 +52,7 @@ def main():
     elif a.action in ("link","unlink"):
         out=link(ASSETS,IDENTITY,EDITOR,a.asset,a.actor,
                  a.record,a.relation,remove=(a.action=="unlink"))
+    elif a.action=="history":out=history(ASSETS,a.asset)
     else:out=audit(ASSETS,a.asset)
     print(json.dumps(out,ensure_ascii=False,sort_keys=True))
 if __name__=="__main__":main()
