@@ -8,7 +8,8 @@ sys.path[:0]=[str(ROOT/"tools/filmwiki_api"),str(ROOT/"tools/table_import")]
 from local_store import store
 from editor_store import initialize_copy
 from workflow_v5 import setup
-from test_filmwiki_editor_store import fixture,PROJECT,SOURCE_SHA
+from test_filmwiki_editor_store import fixture,SOURCE_SHA
+PROJECT='demo-editor'
 from collab_auth import (create_store,create_user,grant,login,session,
     active_sessions,revoke_session,revoke_all_sessions,setup_session_lifecycle)
 from asset_catalog_v7 import (setup_assets,import_asset,list_assets,download_asset)
