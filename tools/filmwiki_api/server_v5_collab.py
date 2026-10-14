@@ -18,6 +18,7 @@ from collab_auth import (login,session,logout,require_role,list_active_members,
                          active_sessions,revoke_session,revoke_all_sessions)
 from asset_catalog_v7 import list_assets,download_asset
 from asset_security_v9 import setup_security
+from asset_queue_v10 import (setup_queue,enqueue,scan_jobs,review_inbox,decide,inert_text_preview)
 
 ORIGINS={"http://127.0.0.1:8080","http://localhost:8080"}
 HOST="127.0.0.1"
@@ -33,7 +34,7 @@ class CollabServer(ThreadingHTTPServer):
         self.project_id=project_id
         self.asset_root=Path(asset_root) if asset_root is not None else None
         if self.asset_root is not None:
-            setup_security(self.asset_root,self.auth_db.resolve().parent.parent)
+            setup_queue(self.asset_root,self.auth_db.resolve().parent.parent)
         self.sso_hex=None
         if sso_secret_file is not None:
             secret_path=Path(sso_secret_file).resolve(strict=True)
@@ -115,6 +116,25 @@ class Handler(ResponseHandler):
                 return self.respond(200,{"user_id":user["user_id"],
                    "username":user["username"],"memberships":user["memberships"]},origin)
             require_role(user,self.server.project_id,"read")
+            if u.path=="/v7/scans":
+                if u.query:raise InvalidEdit("Query not allowed")
+                if self.server.asset_root is None:
+                    return self.respond(503,{"error":"queue_disabled"},origin)
+                return self.respond(200,{"jobs":scan_jobs(self.server.asset_root,user)},origin)
+            if u.path=="/v7/reviews":
+                if u.query:raise InvalidEdit("Query not allowed")
+                if self.server.asset_root is None:
+                    return self.respond(503,{"error":"queue_disabled"},origin)
+                return self.respond(200,{"pending":review_inbox(self.server.asset_root,user)},origin)
+            match_preview=re.fullmatch(r"/v7/assets/([0-9a-f-]{36})/preview",u.path)
+            if match_preview:
+                if u.query:raise InvalidEdit("Query not allowed")
+                if self.server.asset_root is None:
+                    return self.respond(503,{"error":"queue_disabled"},origin)
+                result=inert_text_preview(self.server.asset_root,user,match_preview.group(1))
+                if result is None:
+                    return self.respond(404,{"error":"preview_not_found"},origin)
+                return self.respond(200,result,origin)
             if u.path=="/v6/assets":
                 if u.query:raise InvalidEdit("Query not allowed")
                 if self.server.asset_root is None:
@@ -190,7 +210,8 @@ class Handler(ResponseHandler):
         path=urlsplit(self.path)
         if path.query:return self.respond(400,{"error":"invalid_path"},origin)
         if path.path not in ("/v5/login","/v5/sso","/v5/logout","/v5/edit","/v5/batch",
-                             "/v6/sessions/revoke","/v6/sessions/revoke-all"):
+                             "/v6/sessions/revoke","/v6/sessions/revoke-all",
+                             "/v7/scans/queue","/v7/reviews/decision"):
             return self.respond(404,{"error":"route_not_found"},origin)
         try:body=self._body()
         except (ValueError,TypeError,json.JSONDecodeError):
@@ -223,6 +244,32 @@ class Handler(ResponseHandler):
             try:revoked=revoke_session(self.server.auth_db,user["user_id"],body["session_id"])
             except ValueError:return self.respond(400,{"error":"invalid_session"},origin)
             return self.respond(200,{"revoked":revoked},origin)
+        if path.path=="/v7/scans/queue":
+            if set(body)!={"asset_id"} or type(body["asset_id"]) is not str:
+                return self.respond(400,{"error":"invalid_scan_request"},origin)
+            if self.server.asset_root is None:
+                return self.respond(503,{"error":"queue_disabled"},origin)
+            try:
+                result=enqueue(self.server.asset_root,self.server.auth_db,
+                               body["asset_id"],user["user_id"])
+            except PermissionError:return self.respond(403,{"error":"queue_not_allowed"},origin)
+            except ValueError:return self.respond(409,{"error":"asset_not_pending"},origin)
+            except (sqlite3.Error,OSError,RuntimeError):
+                return self.respond(503,{"error":"queue_storage_error"},origin)
+            return self.respond(200,result,origin)
+        if path.path=="/v7/reviews/decision":
+            if set(body)!={"asset_id","decision"} or any(type(x) is not str for x in body.values()):
+                return self.respond(400,{"error":"invalid_review_request"},origin)
+            if self.server.asset_root is None:
+                return self.respond(503,{"error":"queue_disabled"},origin)
+            try:
+                result=decide(self.server.asset_root,self.server.auth_db,user,
+                              body["asset_id"],body["decision"])
+            except PermissionError:return self.respond(403,{"error":"review_not_authorized_or_scan_missing"},origin)
+            except ValueError:return self.respond(409,{"error":"review_state_conflict"},origin)
+            except (sqlite3.Error,OSError,RuntimeError):
+                return self.respond(503,{"error":"review_storage_error"},origin)
+            return self.respond(200,result,origin)
         if path.path=="/v5/logout":
             if body:return self.respond(400,{"error":"invalid_body"},origin)
             logout(self.server.auth_db,self.headers.get("Authorization","")[7:])
