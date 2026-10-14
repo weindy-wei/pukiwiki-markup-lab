@@ -51,7 +51,7 @@ export class ProjectClient {
       Array.isArray(s.fields) && s.fields.length<=256,"工作表元数据格式无效");
     return doc;
   }
-  async page(projectId,{sheet,limit=50,cursor=null,q="",field=null,value=null},signal){
+  async page(projectId,{sheet,limit=50,cursor=null,q="",field=null,value=null,kind="string",op="eq"},signal){
     check(Number.isInteger(sheet) && sheet>=1 && sheet<=100,"工作表编号无效");
     check(Number.isInteger(limit) && limit>=1 && limit<=MAX_PAGE,"分页大小超限");
     check(typeof q==="string" && q.length<=80,"搜索内容过长");
@@ -59,8 +59,12 @@ export class ProjectClient {
     check((field===null && value===null) ||
       (Number.isInteger(field) && field>=1 && field<=256 &&
        typeof value==="string" && value.length<=160),"字段筛选条件无效");
+    check((kind==="string"&&op==="eq") ||
+      (kind==="number"&&["eq","lt","le","gt","ge"].includes(op)&&field!==null),
+      "字段类型或比较方式不支持");
     const path=this.project(projectId)+"/records";
-    const data=await this.get(path,{sheet,limit,cursor,q,field,value},signal);
+    const data=await this.get(path,{sheet,limit,cursor,q,field,value,
+      kind:kind==="number"?kind:undefined,op:kind==="number"?op:undefined},signal);
     check(data?.format==="filmwiki-record-page" && data.version===2 &&
       data.project_id===projectId && data.sheet_index===sheet &&
       Array.isArray(data.records) && Array.isArray(data.asset_references) &&

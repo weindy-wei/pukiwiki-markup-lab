@@ -28,3 +28,9 @@
 .live-sheet-summary{font-size:11px;color:#a0b3c9}
 @media(max-width:900px){.live-connect{grid-template-columns:1fr}.live-query .fw-search{flex:1 1 100%;max-width:none}}
 @media(max-width:760px){.live-connect{padding:17px;gap:15px;margin-bottom:24px}.live-project-select{max-width:100%;margin:0 0 9px}.live-query .live-field,.live-query .live-value{width:auto;flex:1 1 42%}.live-pager{justify-content:center;padding:15px}}
+
+/* Step26: readable explicit type/range filter controls */
+.live-query .live-kind{width:145px;height:39px;font-size:12px}
+.live-query .live-op{width:122px;height:39px;font-size:12px}
+.live-type-note{padding:9px 25px 13px;color:#7c91a7;font-size:11px;line-height:1.7;border-bottom:1px solid #edf0f5}
+@media(max-width:760px){.live-query .live-kind,.live-query .live-op{width:auto;flex:1 1 42%}.live-type-note{padding:9px 14px}}
