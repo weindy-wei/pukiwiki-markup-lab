@@ -113,6 +113,26 @@ class Step30DeployTests(unittest.TestCase):
             self.assertEqual(hashlib.sha256(
                 (self.root/"staging"/(key+".sqlite")).read_bytes()).hexdigest(),digest)
 
+    def test_failed_health_gate_compensates_and_restores_registry(self):
+        checked=[]
+        def reject_then_confirm(root,ids):
+            checked.append(list(ids))
+            if len(checked)==1:
+                raise RuntimeError("Injected failed deployment health gate")
+            return self.get_projects(ids)
+        with patch.object(d,"_with_maintenance",side_effect=lambda root,op:op()), \
+             patch.object(d,"_command",return_value=""), \
+             patch.object(d,"_verify_live",side_effect=reject_then_confirm):
+            with self.assertRaises(RuntimeError):
+                d.activate(self.root,self.release)
+        self.assertEqual(len(checked),2)
+        self.assertEqual(checked[-1],["demo-shortfilm","demo-longshots"])
+        self.assertEqual(hashlib.sha256(self.registry.read_bytes()).hexdigest(),self.base_sha)
+        self.assertFalse((self.root/"indexes/demo-published.search.sqlite").exists())
+        txn=list((self.root/"deployments/transactions").glob("*/transaction.json"))
+        self.assertEqual(len(txn),1)
+        self.assertEqual(json.loads(txn[0].read_text())["state"],"rolled_back_after_failure")
+
     def test_interrupted_transaction_manual_recovery(self):
         with patch.object(d,"_with_maintenance",side_effect=lambda root,operation:operation()), \
              patch.object(d,"_command",return_value=""), \
