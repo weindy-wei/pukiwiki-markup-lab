@@ -15,7 +15,10 @@ PROJECT="demo-editor"
 ACL='#^FilmWiki/Projects/demo-editor(?:/|$)#u'
 
 def plan_auth(old):
-    if BEGIN in old:return old
+    if BEGIN in old:
+        if "filmwiki_unified_edit_csrf_ok" not in old:
+            raise ValueError("Legacy Step32 hook has no CSRF gate; stop and upgrade safely")
+        return old
     replacements=[
       (
        'function is_page_readable($page) {\n\tglobal $read_auth_pages, $read_auth;\n',
