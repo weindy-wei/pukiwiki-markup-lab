@@ -88,6 +88,11 @@ def import_asset(root,identity_db,source,project_id,owner_user_id,filename,mime,
     data=source.read_bytes()
     if len(data)>MAX_BYTES or not _payload_valid(data,mime):
         raise ValueError("Invalid file signature/payload")
+    # Step36: block legacy direct-approved imports after the security migration.
+    with closing(_connect(root)) as state:
+        if state.execute("SELECT 1 FROM sqlite_master WHERE type='table' "
+                         "AND name='asset_security_meta'").fetchone():
+            raise PermissionError("Direct imports disabled; use staged scan/review")
     with sqlite3.connect(identity_db.resolve().as_uri()+"?mode=ro",uri=True) as con:
         member=con.execute("SELECT 1 FROM users u JOIN memberships m ON u.user_id=m.user_id "
                           "WHERE u.user_id=? AND u.active=1 AND m.project_id=? LIMIT 1",
@@ -122,6 +127,18 @@ def _authorized(record,identity,project_id):
 
 def list_assets(root,identity,project_id):
     if project_id!=PROJECT:return []
+def _approved_version(con,r):
+    cols={col["name"] for col in con.execute("PRAGMA table_info(asset_versions)")}
+    if "scan_state" not in cols:return True  # unmigrated test fixture only
+    ver=con.execute("SELECT review_state,scan_state,scan_digest,sha256 "
+        "FROM asset_versions WHERE asset_id=? AND version=?",
+        (r["asset_id"],r["current_version"])).fetchone()
+    if not ver or ver["review_state"]!="approved":return False
+    # Existing pre-Step36 synthetic v1 objects are tagged legacy_unverified,
+    # not represented as clean. No new object may be imported as legacy.
+    return ver["scan_state"]=="legacy_unverified" or (
+        ver["scan_state"]=="clean" and ver["scan_digest"]==ver["sha256"])
+
     with closing(_connect(root)) as con:
         return [{
             k:r[k] for k in ("asset_id","original_filename","media_type","visibility",
@@ -130,7 +147,8 @@ def list_assets(root,identity,project_id):
                                  "ORDER BY created_utc DESC,asset_id",(project_id,))
             if _authorized(r,identity,project_id)
             and ("asset_state" not in r.keys() or
-                 (r["asset_state"]=="approved" and r["deleted_at"] is None))]
+                 (r["asset_state"]=="approved" and r["deleted_at"] is None))
+            and _approved_version(con,r)]
 
 def download_asset(root,identity,project_id,asset_id):
     if project_id!=PROJECT or type(asset_id) is not str:
@@ -143,6 +161,7 @@ def download_asset(root,identity,project_id,asset_id):
         if row is None or not _authorized(row,identity,project_id):return None
         if "asset_state" in row.keys() and (row["asset_state"]!="approved" or
                                               row["deleted_at"] is not None):return None
+        if not _approved_version(con,row):return None
         metadata=dict(row)
     ver=metadata.get("current_version",1)
     if type(ver) is not int or not 1<=ver<=100000:
