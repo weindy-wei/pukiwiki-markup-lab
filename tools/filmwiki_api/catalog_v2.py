@@ -126,6 +126,21 @@ def _materialize(con,rows,fields,sha):
             "parent_record_id":p["parent_record_id"],
             "candidate_record_ids":json.loads(p["candidate_record_ids_json"])
         }
+    # Step30 published working copies may carry audited parent overrides.
+    # Preserve original imported labels/candidates but expose the effective
+    # reviewed target. Original Step24/25 databases lack this table.
+    if con.execute("SELECT 1 FROM sqlite_master WHERE type='table' "
+                   "AND name='workflow_relation_overrides'").fetchone():
+        for override in con.execute(
+            "SELECT child_record_id,parent_record_id FROM workflow_relation_overrides "
+            "WHERE child_record_id IN ("+marks+")",ids
+        ):
+            rid=override["child_record_id"]
+            if rid in parents:
+                parents[rid]["parent_record_id"]=override["parent_record_id"]
+                parents[rid]["status"]=(
+                    "resolved" if override["parent_record_id"] is not None else "cleared")
+                parents[rid]["reviewed_override"]=True
     for a in con.execute(
         "SELECT ref_id,record_id,filename,source_column,status FROM asset_references "
         "WHERE source_sha256=? AND record_id IN ("+marks+") ORDER BY ref_id",[sha,*ids]
