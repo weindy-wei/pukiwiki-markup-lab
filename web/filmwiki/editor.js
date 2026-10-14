@@ -1,7 +1,7 @@
-/* FilmWiki Step28: dedicated synthetic working-copy editor, token in memory only. */
+/* FilmWiki trusted-local editor: no bearer token; loopback and Origin locked. */
 const BASE="http://127.0.0.1:8094";
 const $=id=>document.getElementById(id);
-let token=null,manifest=null,current=null,loaded=null,sheet=1,historyRows=[];
+let manifest=null,current=null,loaded=null,sheet=1,historyRows=[];
 let pageAfter=1,pageStack=[],search="",busy=false;
 function node(tag,text,className){
   const n=document.createElement(tag);
@@ -15,15 +15,13 @@ function status(message,error=false,success=false){
 }
 function qs(params){return new URLSearchParams(params).toString();}
 async function request(path,body=null){
-  if(!token)throw new Error("请先连接编辑令牌");
   const response=await globalThis.fetch(BASE+path,{
     method:body===null?"GET":"POST",mode:"cors",credentials:"omit",
     cache:"no-store",redirect:"error",referrerPolicy:"no-referrer",
-    headers:{"Authorization":"Bearer "+token,
-      ...(body===null?{}:{"Content-Type":"application/json"})},
+    headers:body===null?{}:{"Content-Type":"application/json"},
     ...(body===null?{}:{body:JSON.stringify(body)})
   });
-  if(response.status===401)throw new Error("编辑令牌无效");
+  if(response.status===403)throw new Error("访问被拒绝：只能从本机 FilmWiki 页面操作");
   if(response.status===409){
     const e=new Error("记录版本已改变，请刷新详情后再提交");
     e.conflict=true;throw e;
@@ -117,15 +115,12 @@ async function loadRecord(id){
     status("记录版本 v"+current.version+"，审计事件 "+historyRows.length+" 条。");
   }catch(e){status(e.message,true);}
 }
-$("connect").addEventListener("click",async()=>{
-  const candidate=$("auth-token").value.trim();
-  if(candidate.length<64){status("编辑令牌格式不正确",true);return;}
-  token=candidate;$("connect").disabled=true;status("正在验证独立编辑 API…");
+async function connectEditor(){
+  $("connect").disabled=true;status("正在连接本机编辑副本…");
   try{
     manifest=await request("/v4/manifest");
     if(manifest.format!=="filmwiki-editor-manifest"||!manifest.working_copy)
       throw new Error("服务器不是可编辑工作副本");
-    $("auth-token").value="";
     $("auth-panel").hidden=true;$("workspace").hidden=false;
     $("project-title").textContent=manifest.project.id;
     $("sheet-total").textContent=String(manifest.sheets.length);
@@ -136,9 +131,11 @@ $("connect").addEventListener("click",async()=>{
     }
     sheet=manifest.sheets[0]?.sheet_index??1;
     await loadPage();
-  }catch(e){token=null;status("连接失败："+e.message,true);}
+  }catch(e){status("连接失败："+e.message,true);}
   finally{$("connect").disabled=false;}
-});
+}
+$("connect").addEventListener("click",connectEditor);
+connectEditor();
 $("sheet-select").addEventListener("change",()=>{sheet=Number($("sheet-select").value);search="";
   $("search-term").value="";loadPage();});
 $("search-button").addEventListener("click",()=>{search=$("search-term").value.trim();loadPage();});

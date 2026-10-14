@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""FilmWiki Step28 localhost-only revisioned editor API, separate credential/port.
+"""FilmWiki localhost-only revisioned editor API with opt-in tokenless loopback.
 
 Not an extension of production read-only v3 routes. Edits operate on an isolated
 private working COPY of a synthetic source, never on canonical source SQLite.
@@ -47,8 +47,11 @@ def create_token(path):
 class EditorHTTP(ThreadingHTTPServer):
     allow_reuse_address=True
     daemon_threads=True
-    def __init__(self,address,db,token,project_id):
+    def __init__(self,address,db,token,project_id,local_no_token=False):
+        if local_no_token and address[0]!=HOST:
+            raise ValueError("Tokenless editor must bind only 127.0.0.1")
         self.db=Path(db);self.token=token;self.project_id=project_id
+        self.local_no_token=local_no_token
         super().__init__(address,Handler)
 
 
@@ -59,12 +62,26 @@ class Handler(BaseHandler):
         status=args[1] if len(args)>1 else "?"
         print("FilmWiki editor request HTTP "+str(status),flush=True)
 
+    def valid_host(self):
+        # Prevent DNS-rebinding requests routed to a loopback server through
+        # attacker-controlled Host names. Reject duplicate Host headers too.
+        hosts=self.headers.get_all("Host",[])
+        port=self.server.server_port
+        return len(hosts)==1 and hosts[0].lower() in (
+            f"127.0.0.1:{port}",f"localhost:{port}")
+
     def check_auth(self):
+        if self.server.local_no_token:
+            # A tokenless endpoint is still restricted by Origin, Host and
+            # loopback bind checks; local operating-system apps can reach it.
+            return True
         header=self.headers.get("Authorization","")
         if not header.startswith("Bearer ") or len(header)>300:return False
         return hmac.compare_digest(header[7:],self.server.token)
 
     def do_OPTIONS(self):
+        if not self.valid_host():
+            return self.respond(403,{"error":"host_not_allowed"})
         origin=self.headers.get("Origin")
         if origin not in ORIGINS:
             return self.respond(403,{"error":"origin_not_allowed"})
@@ -72,20 +89,28 @@ class Handler(BaseHandler):
             return self.respond(405,{"error":"unsupported_method"},origin)
         headers={x.strip().lower() for x in self.headers.get(
             "Access-Control-Request-Headers","").split(",") if x.strip()}
-        if not headers.issubset({"authorization","content-type"}):
+        allowed={"content-type"} if self.server.local_no_token else {"authorization","content-type"}
+        if not headers.issubset(allowed):
             return self.respond(403,{"error":"unsupported_headers"},origin)
         self.send_response(204)
         self.send_header("Access-Control-Allow-Origin",origin)
         self.send_header("Access-Control-Allow-Methods","GET, POST, OPTIONS")
-        self.send_header("Access-Control-Allow-Headers","Authorization, Content-Type")
+        self.send_header("Access-Control-Allow-Headers",
+                         "Content-Type" if self.server.local_no_token else "Authorization, Content-Type")
         self.send_header("Access-Control-Max-Age","300")
         self.send_header("Cache-Control","no-store")
         self.send_header("Vary","Origin")
         self.end_headers()
 
     def _request_valid(self,write=False):
+        if not self.valid_host():
+            self.respond(403,{"error":"host_not_allowed"})
+            return False
         origin=self.headers.get("Origin")
-        if origin not in ORIGINS and (write or origin is not None):
+        # Without a bearer secret, require a trusted local browser Origin on
+        # *all* data routes, not just on POST. Health remains non-sensitive.
+        if origin not in ORIGINS and (
+            self.server.local_no_token or write or origin is not None):
             self.respond(403,{"error":"origin_not_allowed"})
             return False
         if len(self.path)>1400 or urlsplit(self.path).fragment:
@@ -97,6 +122,8 @@ class Handler(BaseHandler):
         return True
 
     def do_GET(self):
+        if not self.valid_host():
+            return self.respond(403,{"error":"host_not_allowed"})
         if urlsplit(self.path).path=="/v4/health" and not urlsplit(self.path).query:
             return self.respond(200,{"status":"ok","editor_working_copy":True})
         if not self._request_valid():return
@@ -173,7 +200,10 @@ def main():
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--data-root",required=True,type=Path)
     parser.add_argument("--db",required=True,type=Path)
-    parser.add_argument("--token-file",required=True,type=Path)
+    auth=parser.add_mutually_exclusive_group(required=True)
+    auth.add_argument("--token-file",type=Path)
+    auth.add_argument("--local-no-token",action="store_true",
+                      help="Trusted local single-operator mode; no bearer prompt")
     parser.add_argument("--project-id",required=True)
     parser.add_argument("--port",type=int,default=8094)
     args=parser.parse_args()
@@ -184,8 +214,9 @@ def main():
     meta=get_meta(db)
     if meta["project_id"]!=args.project_id:parser.error("Editor project identity mismatch")
     verify_history(db)
-    token=require_private_token(args.token_file,root)
-    with EditorHTTP((HOST,args.port),db,token,args.project_id) as server:
+    token=None if args.local_no_token else require_private_token(args.token_file,root)
+    with EditorHTTP((HOST,args.port),db,token,args.project_id,
+                    local_no_token=args.local_no_token) as server:
         print("FilmWiki isolated working-copy editor ready: 127.0.0.1:"+str(args.port),
               flush=True)
         server.serve_forever(poll_interval=0.5)

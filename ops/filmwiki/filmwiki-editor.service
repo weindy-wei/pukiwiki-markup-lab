@@ -9,7 +9,7 @@ User=administrator
 Group=administrator
 WorkingDirectory=/home/administrator/filmwiki-data
 Environment=PYTHONDONTWRITEBYTECODE=1
-ExecStart=/usr/bin/python3 /home/administrator/filmwiki-data/services/server_v4.py --data-root /home/administrator/filmwiki-data --db /home/administrator/filmwiki-data/editing/synthetic-step28-editor.sqlite --token-file /home/administrator/filmwiki-data/private/editor-token.txt --project-id demo-editor --port 8094
+ExecStart=/usr/bin/python3 /home/administrator/filmwiki-data/services/server_v4.py --data-root /home/administrator/filmwiki-data --db /home/administrator/filmwiki-data/editing/synthetic-step28-editor.sqlite --local-no-token --project-id demo-editor --port 8094
 Restart=on-failure
 RestartSec=3s
 UMask=0077
