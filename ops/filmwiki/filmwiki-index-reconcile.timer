@@ -1,0 +1,13 @@
+[Unit]
+Description=Hourly FilmWiki FTS5 sidecar reconciliation
+
+[Timer]
+OnBootSec=15min
+OnUnitActiveSec=1h
+AccuracySec=5min
+RandomizedDelaySec=5min
+Persistent=true
+Unit=filmwiki-index-reconcile.service
+
+[Install]
+WantedBy=timers.target
