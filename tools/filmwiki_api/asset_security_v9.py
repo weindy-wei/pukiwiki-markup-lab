@@ -2,7 +2,7 @@
 """Fail-closed ClamAV plus MIME scanner for local synthetic file review."""
 from contextlib import closing
 from datetime import datetime,timezone
-import hashlib,shutil,subprocess
+import hashlib,shutil,subprocess,time
 from pathlib import Path
 from asset_lifecycle_v8 import (_connect,_verify_file,valid_id,utc,_event)
 
@@ -49,6 +49,13 @@ def _type_check(path,expected):
 def _engine(path):
     exe=shutil.which("clamscan")
     if not exe:return ("error","clamscan_unavailable","")
+    # Signatures must exist and be recently updated; a valid executable alone
+    # is not a valid malware scanner.
+    root=Path("/var/lib/clamav")
+    daily=[root/"daily.cvd",root/"daily.cld"]
+    current=[x for x in daily if x.is_file()]
+    if not current or min(time.time()-x.stat().st_mtime for x in current)>72*3600:
+        return ("error","signature_database_missing_or_stale","")
     try:
         result=subprocess.run([exe,"--no-summary","--stdout","--infected",
                   "--max-filesize=20M","--max-scansize=50M","--max-recursion=8",
