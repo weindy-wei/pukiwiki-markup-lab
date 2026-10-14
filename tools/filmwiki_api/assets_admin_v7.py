@@ -17,6 +17,8 @@ def main():
                                      "application/pdf","video/mp4","text/plain"))
     p.add_argument("--visibility",choices=("project","private"))
     a=p.parse_args()
+    if a.action=="import":
+        p.error("Step35 disables legacy direct-approved imports. Use lifecycle CLI staging and review.")
     setup_assets(ASSETS,ROOT)
     if a.action=="init":
         print(json.dumps({"assets_root":str(ASSETS),"upload_api":False}))
