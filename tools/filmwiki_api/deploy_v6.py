@@ -50,6 +50,11 @@ def _atomic(path,data,mode=0o600):
     fd,name=tempfile.mkstemp(prefix=".step30-",dir=path.parent)
     try:
         os.fchmod(fd,mode)
+        # The hourly index worker runs as administrator; preserve ownership
+        # after a privileged maintenance cutover.
+        if os.geteuid()==0:
+            owner=pwd.getpwnam("administrator")
+            os.fchown(fd,owner.pw_uid,owner.pw_gid)
         with os.fdopen(fd,"wb") as file:
             file.write(data)
             file.flush();os.fsync(file.fileno())
@@ -108,6 +113,18 @@ def plan(root,release_id,alias=ALIAS):
     root,home=_base(root);_valid_release_id(release_id)
     if alias!=ALIAS:raise ValueError("Only the demo alias is permitted")
     info=inspect_release(root/"releases",release_id)
+    release_dir=root/"releases/published"/release_id
+    release_manifest=json.loads((release_dir/"manifest.json").read_text())
+    approval=json.loads((release_dir/"approval.json").read_text())
+    publication=json.loads((release_dir/"publication.json").read_text())
+    from release_v5 import _hash
+    if (publication.get("release_id")!=release_id or
+        publication.get("http_deployed") is not False or
+        publication.get("snapshot_sha256")!=info["sha256"] or
+        publication.get("approval_hash")!=_hash(approval) or
+        approval.get("manifest_hash")!=_hash(release_manifest) or
+        approval.get("snapshot_sha256")!=info["sha256"]):
+        raise ValueError("Publication chain is invalid or incomplete")
     if info["project_id"]!=EDIT_PROJECT:
         raise ValueError("Not a reviewed synthetic editor project")
     released=root/"releases/published"/release_id/"snapshot.sqlite"
