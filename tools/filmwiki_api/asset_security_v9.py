@@ -71,7 +71,7 @@ def _engine(path):
 def scan_pending(root,identity_db,asset_id,actor_id):
     from asset_lifecycle_v8 import _actor
     if not valid_id(asset_id):raise ValueError("Invalid asset ID")
-    _actor(identity_db,actor_id,"demo-editor",{"owner","reviewer","publisher"})
+    _actor(identity_db,actor_id,"demo-editor",{"owner","editor","reviewer","publisher"})
     with closing(_connect(root)) as c:
         c.execute("BEGIN IMMEDIATE")
         try:
