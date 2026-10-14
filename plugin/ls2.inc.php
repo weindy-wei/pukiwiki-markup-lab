@@ -102,6 +102,8 @@ function plugin_ls2_show_lists($prefix, & $params)
 		$pages = get_existpages();
 	}
 
+	// Step35: prefixes may include protected project pages.
+	$pages = array_values(array_filter($pages, 'is_page_readable'));
 	natcasesort($pages);
 	if ($params['reverse']) $pages = array_reverse($pages);
 
