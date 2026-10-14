@@ -88,6 +88,37 @@ def grant(db,project_id,username,role):
                         (project_id,row[0],role))
             return row[0]
 
+def revoke(db,project_id,username,role):
+    if not PROJECT_RE.fullmatch(project_id) or role not in ROLES:
+        raise ValueError("Invalid project/role")
+    with closing(connect(db)) as con:
+        with con:
+            user=con.execute("SELECT user_id FROM users WHERE username=?",(username,)).fetchone()
+            if not user:raise ValueError("Unknown user")
+            uid=user["user_id"]
+            con.execute("DELETE FROM memberships WHERE project_id=? AND user_id=? AND role=?",
+                        (project_id,uid,role))
+            # Re-authenticate after a permission change; no stale sessions.
+            con.execute("DELETE FROM sessions WHERE user_id=?",(uid,))
+            return uid
+
+
+def reset_password(db,username,password):
+    if not isinstance(username,str) or not USER_RE.fullmatch(username) or \
+       type(password) is not str or not 12<=len(password)<=128 or \
+       len(password.encode())>300 or len(set(password))<6:
+        raise ValueError("Username/password policy failed")
+    salt=secrets.token_bytes(24)
+    with closing(connect(db)) as con:
+        with con:
+            row=con.execute("SELECT user_id FROM users WHERE username=?",(username,)).fetchone()
+            if row is None:raise ValueError("Unknown user")
+            con.execute("UPDATE users SET salt=?,password_hash=?,failures=0,locked_until=0 "
+                        "WHERE user_id=?",(salt,_hash(password,salt),row["user_id"]))
+            con.execute("DELETE FROM sessions WHERE user_id=?",(row["user_id"],))
+            return row["user_id"]
+
+
 def disable(db,username):
     with closing(connect(db)) as con:
         with con:
