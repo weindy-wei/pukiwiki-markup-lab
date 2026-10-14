@@ -18,6 +18,7 @@ from urllib.parse import parse_qs,urlsplit
 from server import Handler as BaseHandler,ORIGINS
 from editor_store import (manifest,list_records,record,history,change,verify_history,
                           get_meta,InvalidEdit,VersionConflict,DuplicateRequest,MissingRecord)
+from workflow_v5 import batch_change,relation,ACTOR
 
 HOST="127.0.0.1"
 MAX_BODY=16384
@@ -143,13 +144,14 @@ class Handler(BaseHandler):
                     self.server.db,int(qs["sheet"][0]),int(qs.get("after",["1"])[0]),
                     int(qs.get("limit",["25"])[0]),qs.get("q",[""])[0]
                 )
-            elif u.path in ("/v4/record","/v4/history"):
+            elif u.path in ("/v4/record","/v4/history","/v4/relationship"):
                 if set(qs)!={"sheet","id"}:raise InvalidEdit("Invalid query")
                 sheet=int(qs["sheet"][0]);rid=qs["id"][0]
                 if not re.fullmatch(r"src_[a-zA-Z0-9_-]{1,95}",rid):
                     raise InvalidEdit("Invalid record ID")
                 response=(record(self.server.db,sheet,rid) if u.path=="/v4/record"
-                          else history(self.server.db,sheet,rid))
+                          else history(self.server.db,sheet,rid) if u.path=="/v4/history"
+                          else relation(self.server.db,sheet,rid))
             else:
                 return self.respond(404,{"error":"route_not_found"},origin)
         except (InvalidEdit,ValueError,TypeError,OverflowError,IndexError):
@@ -163,7 +165,8 @@ class Handler(BaseHandler):
     def do_POST(self):
         if not self._request_valid(write=True):return
         origin=self.headers.get("Origin")
-        if urlsplit(self.path).path!="/v4/edit" or urlsplit(self.path).query:
+        route=urlsplit(self.path).path
+        if route not in ("/v4/edit","/v4/batch") or urlsplit(self.path).query:
             return self.respond(404,{"error":"route_not_found"},origin)
         if self.headers.get("Content-Type","").split(";")[0].lower()!="application/json":
             return self.respond(415,{"error":"json_only"},origin)
@@ -172,24 +175,36 @@ class Handler(BaseHandler):
             if not 0<size<=MAX_BODY:raise ValueError()
             raw=self.rfile.read(size)
             request=json.loads(raw)
-            if not isinstance(request,dict) or set(request)!={
-                "project_id","sheet_index","record_id","column_index","value",
-                "expected_version","reason","request_id"
-            }:raise InvalidEdit("Invalid patch schema")
-            result=change(
-                self.server.db,request["project_id"],request["sheet_index"],
-                request["record_id"],request["column_index"],request["value"],
-                request["expected_version"],request["reason"],request["request_id"]
-            )
+            if not isinstance(request,dict):
+                raise InvalidEdit("Invalid patch payload")
+            if route=="/v4/edit":
+                if set(request)!={
+                    "project_id","sheet_index","record_id","column_index","value",
+                    "expected_version","reason","request_id"
+                }:raise InvalidEdit("Invalid patch schema")
+                result=change(
+                    self.server.db,request["project_id"],request["sheet_index"],
+                    request["record_id"],request["column_index"],request["value"],
+                    request["expected_version"],request["reason"],request["request_id"]
+                )
+            else:
+                if set(request)!={"project_id","operations","reason","batch_id"}:
+                    raise InvalidEdit("Invalid batch schema")
+                result=batch_change(
+                    self.server.db,request["project_id"],request["operations"],
+                    request["reason"],request["batch_id"],actor=ACTOR
+                )
         except (VersionConflict,DuplicateRequest):
             return self.respond(409,{"error":"version_conflict_or_replay","action":"reload_record"},origin)
         except MissingRecord:
             return self.respond(404,{"error":"record_not_found"},origin)
+        except PermissionError:
+            return self.respond(403,{"error":"insufficient_project_role"},origin)
         except (InvalidEdit,ValueError,TypeError,OverflowError,json.JSONDecodeError):
             return self.respond(400,{"error":"invalid_patch"},origin)
         except (sqlite3.Error,OSError):
             return self.respond(503,{"error":"storage_unavailable"},origin)
-        return self.respond(200,{"format":"filmwiki-editor-edit","version":1,**result},origin)
+        return self.respond(200,{"format":"filmwiki-editor-batch" if route=="/v4/batch" else "filmwiki-editor-edit","version":1,**result},origin)
 
     def do_PUT(self):self.respond(405,{"error":"not_supported"})
     def do_PATCH(self):self.respond(405,{"error":"not_supported"})
