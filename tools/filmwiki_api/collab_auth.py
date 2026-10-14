@@ -21,7 +21,8 @@ CREATE TABLE users (
   active INTEGER NOT NULL DEFAULT 1 CHECK(active IN (0,1)),
   failures INTEGER NOT NULL DEFAULT 0,
   locked_until INTEGER NOT NULL DEFAULT 0,
-  created_utc TEXT NOT NULL
+  created_utc TEXT NOT NULL,
+  session_epoch INTEGER NOT NULL DEFAULT 0
 );
 CREATE TABLE memberships (
   project_id TEXT NOT NULL,
@@ -31,7 +32,9 @@ CREATE TABLE memberships (
 );
 CREATE TABLE sessions (
   session_sha256 TEXT PRIMARY KEY,user_id TEXT NOT NULL REFERENCES users(user_id),
-  created_at INTEGER NOT NULL,expires_at INTEGER NOT NULL
+  created_at INTEGER NOT NULL,expires_at INTEGER NOT NULL,
+  session_id TEXT UNIQUE,source TEXT NOT NULL DEFAULT 'password',
+  session_epoch INTEGER NOT NULL DEFAULT 0
 );
 CREATE INDEX session_expiry ON sessions(expires_at);
 """
@@ -158,8 +161,7 @@ def login(db,username,password,now=None):
                 con.execute("COMMIT");return None
             con.execute("UPDATE users SET failures=0,locked_until=0 WHERE user_id=?",(row["user_id"],))
             raw=secrets.token_hex(48)
-            con.execute("INSERT INTO sessions VALUES(?,?,?,?)",
-                        (_token_hash(raw),row["user_id"],now,now+SESSION_SECONDS))
+            _insert_session(con,raw,row["user_id"],now,"password")
             con.execute("COMMIT")
             return {"access_token":raw,"expires_in":SESSION_SECONDS,
                     "user_id":row["user_id"],"username":row["username"]}
@@ -172,15 +174,18 @@ def session(db,token,now=None):
     digest=_token_hash(token)
     if digest is None:return None
     with closing(connect(db)) as con:
-        user=con.execute("SELECT u.user_id,u.username,u.active,s.expires_at "
+        user=con.execute("SELECT u.user_id,u.username,u.active,u.session_epoch AS current_epoch,"
+                         "s.session_epoch AS issued_epoch,s.session_id,s.source,s.expires_at "
                          "FROM sessions s JOIN users u ON u.user_id=s.user_id "
                          "WHERE s.session_sha256=?",(digest,)).fetchone()
-        if user is None or not user["active"] or now>=user["expires_at"]:return None
+        if user is None or not user["active"] or now>=user["expires_at"] or \
+           user["current_epoch"]!=user["issued_epoch"]:return None
         roles=[dict(x) for x in con.execute(
             "SELECT project_id,role FROM memberships WHERE user_id=? ORDER BY project_id,role",
             (user["user_id"],))]
         return {"user_id":user["user_id"],"username":user["username"],
-                "expires_at":user["expires_at"],"memberships":roles}
+                "expires_at":user["expires_at"],"session_id":user["session_id"],
+                "source":user["source"],"memberships":roles}
 
 def logout(db,token):
     digest=_token_hash(token)
@@ -267,11 +272,86 @@ def redeem_sso(db,assertion,signature,secret_hex,now=None):
             # periodic clean-up removes already-expired entries.
             con.execute("DELETE FROM sso_used_jti WHERE expires_at<?",(now-120,))
             token=secrets.token_hex(48)
-            con.execute("INSERT INTO sessions VALUES(?,?,?,?)",
-                        (_token_hash(token),user["user_id"],now,now+SESSION_SECONDS))
+            _insert_session(con,token,user["user_id"],now,"wiki-sso")
             con.execute("COMMIT")
             return {"access_token":token,"expires_in":SESSION_SECONDS,
                     "user_id":user["user_id"],"username":user["username"]}
         except Exception:
             if con.in_transaction:con.execute("ROLLBACK")
+            raise
+
+
+# Step34: independent revocable sessions with one shared account epoch.
+def setup_session_lifecycle(db):
+    with closing(connect(db)) as con:
+        con.execute("BEGIN IMMEDIATE")
+        try:
+            cols={r["name"] for r in con.execute("PRAGMA table_info(users)")}
+            if "session_epoch" not in cols:
+                con.execute("ALTER TABLE users ADD COLUMN session_epoch INTEGER NOT NULL DEFAULT 0")
+            cols={r["name"] for r in con.execute("PRAGMA table_info(sessions)")}
+            if "session_id" not in cols:
+                con.execute("ALTER TABLE sessions ADD COLUMN session_id TEXT")
+            if "source" not in cols:
+                con.execute("ALTER TABLE sessions ADD COLUMN source TEXT NOT NULL DEFAULT 'legacy'")
+            if "session_epoch" not in cols:
+                con.execute("ALTER TABLE sessions ADD COLUMN session_epoch INTEGER NOT NULL DEFAULT 0")
+            con.execute("CREATE UNIQUE INDEX IF NOT EXISTS session_public_id ON sessions(session_id)")
+            for row in con.execute("SELECT session_sha256 FROM sessions WHERE session_id IS NULL").fetchall():
+                con.execute("UPDATE sessions SET session_id=? WHERE session_sha256=?",
+                            (str(uuid.uuid4()),row["session_sha256"]))
+            con.execute("COMMIT")
+        except Exception:
+            con.execute("ROLLBACK")
+            raise
+
+def _insert_session(con,raw,user_id,now,source):
+    epoch=con.execute("SELECT session_epoch FROM users WHERE user_id=? AND active=1",
+                      (user_id,)).fetchone()
+    if epoch is None:raise PermissionError("Account not active")
+    session_id=str(uuid.uuid4())
+    con.execute("INSERT INTO sessions(session_sha256,user_id,created_at,expires_at,"
+                "session_id,source,session_epoch) VALUES(?,?,?,?,?,?,?)",
+                (_token_hash(raw),user_id,now,now+SESSION_SECONDS,
+                 session_id,source,epoch["session_epoch"]))
+    return session_id
+
+def active_sessions(db,user_id,now=None):
+    now=int(time.time()) if now is None else int(now)
+    with closing(connect(db)) as con:
+        return [dict(x) for x in con.execute(
+            "SELECT s.session_id,s.source,s.created_at,s.expires_at "
+            "FROM sessions s JOIN users u ON u.user_id=s.user_id "
+            "WHERE s.user_id=? AND u.active=1 AND s.session_epoch=u.session_epoch "
+            "AND s.expires_at>? ORDER BY s.created_at DESC,s.session_id",(user_id,now))]
+
+def revoke_session(db,actor_id,session_id):
+    if type(session_id) is not str:
+        raise ValueError("Invalid session ID")
+    try:
+        if str(uuid.UUID(session_id))!=session_id:
+            raise ValueError("Invalid session ID")
+    except (ValueError,AttributeError):raise ValueError("Invalid session ID")
+    with closing(connect(db)) as con:
+        with con:
+            result=con.execute("DELETE FROM sessions WHERE user_id=? AND session_id=?",
+                               (actor_id,session_id))
+            return result.rowcount==1
+
+def revoke_all_sessions(db,user_id):
+    # The owner-local administrator or the user's authenticated API may invoke.
+    # Epoch changes are read by PHP even though the PHP identity DB mount is RO.
+    with closing(connect(db)) as con:
+        con.execute("BEGIN IMMEDIATE")
+        try:
+            result=con.execute("UPDATE users SET session_epoch=session_epoch+1 "
+                               "WHERE user_id=? AND active=1",(user_id,))
+            if result.rowcount!=1:
+                raise ValueError("Unknown active user")
+            removed=con.execute("DELETE FROM sessions WHERE user_id=?",(user_id,)).rowcount
+            con.execute("COMMIT")
+            return {"user_id":user_id,"revoked_api_sessions":removed,
+                    "wiki_sessions_invalidated_on_next_request":True}
+        except Exception:
+            con.execute("ROLLBACK")
             raise
