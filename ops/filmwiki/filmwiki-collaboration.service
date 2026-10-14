@@ -10,7 +10,7 @@ User=administrator
 Group=administrator
 WorkingDirectory=/home/administrator/filmwiki-data
 Environment=PYTHONDONTWRITEBYTECODE=1
-ExecStart=/usr/bin/python3 /home/administrator/filmwiki-data/services/server_v5_collab.py --data-root /home/administrator/filmwiki-data --auth-db /home/administrator/filmwiki-data/private/collaboration-accounts.sqlite --editor-db /home/administrator/filmwiki-data/editing/step31-collaboration.sqlite --project-id demo-editor --port 8098 --sso-secret-file /home/administrator/filmwiki-data/private/step33-sso-secret.key
+ExecStart=/usr/bin/python3 /home/administrator/filmwiki-data/services/server_v5_collab.py --data-root /home/administrator/filmwiki-data --auth-db /home/administrator/filmwiki-data/private/collaboration-accounts.sqlite --editor-db /home/administrator/filmwiki-data/editing/step31-collaboration.sqlite --project-id demo-editor --port 8098 --sso-secret-file /home/administrator/filmwiki-data/private/step33-sso-secret.key --asset-root /home/administrator/filmwiki-data/private/assets-step34
 Restart=on-failure
 RestartSec=3s
 UMask=0077
