@@ -47,6 +47,11 @@ def read_indexed_page(project,secret,sheet,limit=50,cursor=None,q="",field=None,
     index=project.get("index_db")
     if not index:
         raise ValueError("Project has no verified sidecar index")
+    # Imported source snapshots are immutable. Fail closed if a file has been
+    # swapped or altered since the sidecar was validated at service startup.
+    stat=project["db"].stat()
+    if (stat.st_size,stat.st_mtime_ns)!=project.get("source_stat"):
+        raise sqlite3.DatabaseError("Source changed; revalidate/rebuild FTS5 index")
     with closing(open_readonly(project["db"])) as con:
         con.execute("ATTACH DATABASE ? AS idx",(index.resolve().as_uri()+"?mode=ro",))
         columns=con.execute(
@@ -147,4 +152,6 @@ def attach_validated_indices(projects,index_root,data_root):
             raise ValueError("Unsafe index path")
         validate_index(project["db"],project["source_sha"],project["id"],candidate)
         project["index_db"]=candidate
+        stat=project["db"].stat()
+        project["source_stat"]=(stat.st_size,stat.st_mtime_ns)
     return projects
