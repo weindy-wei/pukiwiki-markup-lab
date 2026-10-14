@@ -39,6 +39,8 @@ function plugin_rss_action()
 
 	foreach (file_head($recent, $rss_max) as $line) {
 		list($time, $page) = explode("\t", rtrim($line));
+		// Step35: the cached RSS source includes private pages; filter per request.
+		if (! is_page_readable($page)) continue;
 		$r_page_link = htmlsc(get_page_uri($page, PKWK_URI_ABSOLUTE));
 		$title  = mb_convert_encoding($page, 'UTF-8', SOURCE_ENCODING);
 
