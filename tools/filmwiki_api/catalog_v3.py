@@ -62,17 +62,35 @@ def read_indexed_page(project,secret,sheet,limit=50,cursor=None,q="",field=None,
              "WHERE r.source_sha256=? AND r.sheet_index=? AND r.source_row>?")
         mode="indexed-keyset"
         if q and len(q)>=3:
-            # Escaped MATCH phrase, then original case-sensitive instr guard
-            # on individual canonical JSON cell values. User query is bound.
+            # Cheap capped index probe. Common terms hit thousands of cells:
+            # materializing all MATCH results can be far slower than walking
+            # indexed source rows and checking the first matching page.
             phrase='"'+q.replace('"','""')+'"'
-            sql+=(
-                " AND r.record_id IN ("
-                " SELECT d.record_id FROM idx.cell_fts "
-                " JOIN idx.cell_docs d ON d.doc_id=cell_fts.rowid"
-                " WHERE cell_fts MATCH ? AND d.sheet_index=? AND instr(d.value_json,?)>0)"
-            )
-            params.extend([phrase,sheet,q])
-            mode="fts5-trigram"
+            sample=[r[0] for r in con.execute(
+                "SELECT rowid FROM idx.cell_fts WHERE cell_fts MATCH ? LIMIT 257",
+                (phrase,)
+            )]
+            if len(sample)>=257:
+                sql+=(
+                    " AND EXISTS (SELECT 1 FROM cells c WHERE c.record_id=r.record_id "
+                    "AND instr(c.value_json,?)>0)"
+                )
+                params.append(q)
+                mode="fts5-high-frequency-scan"
+            elif sample:
+                # Only 1–256 candidate cells; look them up by numeric doc id,
+                # then verify exact, case-sensitive substring semantics.
+                marks=",".join("?" for _ in sample)
+                sql+=(
+                    " AND r.record_id IN (SELECT d.record_id FROM idx.cell_docs d "
+                    "WHERE d.doc_id IN ("+marks+") "
+                    "AND d.sheet_index=? AND instr(d.value_json,?)>0)"
+                )
+                params.extend(sample+[sheet,q])
+                mode="fts5-trigram"
+            else:
+                sql+=" AND 0"
+                mode="fts5-trigram"
         elif q:
             # Trigram cannot index sub-3-character terms (including Chinese).
             sql+=(
@@ -113,7 +131,7 @@ def read_indexed_page(project,secret,sheet,limit=50,cursor=None,q="",field=None,
             "limit":limit,"records":records,"asset_references":assets,
             "next_cursor":next_cursor,"has_more":len(found)>limit,
             "count":len(records),"search_backend":mode,
-            "note":"FTS5 trigrams for searches of 3+ Unicode codepoints; short terms scan. Numeric comparisons require actual JSON number cells."
+            "note":"FTS5 trigrams probe 3+ Unicode terms; highly frequent and short terms use a bounded row-scan fallback. Numeric comparisons require actual JSON number cells."
         }
 
 
