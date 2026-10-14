@@ -18,6 +18,24 @@ function filmwiki_unified_session_start() {
     ini_set('session.use_only_cookies','1');
     session_start();
 }
+// Step33: never render private project names from the generated RecentChanges.
+// The original generated source file remains unchanged on disk.
+function filmwiki_unified_redact_recent_changes($source) {
+    if (!is_string($source) && !is_array($source)) return $source;
+    $array_input = is_array($source);
+    $lines = $array_input ? $source : preg_split('/(?<=\n)/', $source, -1, PREG_SPLIT_NO_EMPTY);
+    $visible = array();
+    foreach ($lines as $line) {
+        if (preg_match('/\[\[([^\]]+)\]\]/u', $line, $match)) {
+            $target = $match[1];
+            if (filmwiki_unified_is_managed_page($target) && !is_page_readable($target)) {
+                continue;
+            }
+        }
+        $visible[] = $line;
+    }
+    return $array_input ? $visible : implode('', $visible);
+}
 function filmwiki_unified_is_managed_page($page) {
     return is_string($page) &&
         ($page === 'FilmWiki/Projects/demo-editor' ||
