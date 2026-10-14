@@ -9,7 +9,7 @@ sys.path[:0]=[str(ROOT/"tools/filmwiki_api"),str(ROOT/"tools/table_import")]
 from local_store import store
 from editor_store import initialize_copy,record,history,verify_history
 from workflow_v5 import setup
-from collab_auth import (create_store,create_user,grant,login,session,logout,disable,
+from collab_auth import (create_store,create_user,grant,revoke,reset_password,login,session,logout,disable,
                          require_role,SESSION_SECONDS)
 from server_v5_collab import CollabServer
 from test_filmwiki_editor_store import fixture,PROJECT,SOURCE_SHA
@@ -145,5 +145,24 @@ class Step31Tests(unittest.TestCase):
     def test_10_only_loopback_listening(self):
         with self.assertRaises(ValueError):
             CollabServer(("0.0.0.0",0),self.accounts,self.work,PROJECT)
+
+    def test_11_role_revocation_expires_sessions(self):
+        token=self.auth("mallory","NoMember!Top8")
+        self.assertEqual(self.api("/v5/manifest",token=token)[0],403)
+        grant(self.accounts,PROJECT,"mallory","viewer")
+        token=self.auth("mallory","NoMember!Top8")
+        self.assertEqual(self.api("/v5/manifest",token=token)[0],200)
+        revoke(self.accounts,PROJECT,"mallory","viewer")
+        self.assertEqual(self.api("/v5/manifest",token=token)[0],401)
+        new_token=self.auth("mallory","NoMember!Top8")
+        self.assertEqual(self.api("/v5/manifest",token=new_token)[0],403)
+
+    def test_12_password_reset_invalidates_existing_sessions(self):
+        token=self.auth("bob",PASS2)
+        reset_password(self.accounts,"bob","Replaced!Password2211")
+        self.assertEqual(self.api("/v5/me",token=token)[0],401)
+        self.assertEqual(self.api("/v5/login",{"username":"bob","password":PASS2})[0],401)
+        self.assertEqual(self.api("/v5/login",{
+            "username":"bob","password":"Replaced!Password2211"})[0],200)
 
 if __name__=="__main__":unittest.main()
