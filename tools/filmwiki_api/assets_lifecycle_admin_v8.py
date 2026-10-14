@@ -16,7 +16,7 @@ def main():
     p=argparse.ArgumentParser(description=__doc__)
     modes=p.add_subparsers(dest="action",required=True)
     modes.add_parser("init")
-    for x in ("stage","stage-revision","approve","reject","soft-delete",
+    for x in ("stage","stage-revision","scan","approve","reject","soft-delete",
               "restore","link","unlink","audit","history"):
         sub=modes.add_parser(x)
         if x!="audit":
@@ -27,7 +27,7 @@ def main():
         if x=="stage":
             sub.add_argument("--name",required=True)
             sub.add_argument("--visibility",choices=("private","project"),required=True)
-        if x in ("stage-revision","approve","reject","soft-delete","restore","link","unlink"):
+        if x in ("stage-revision","scan","approve","reject","soft-delete","restore","link","unlink"):
             sub.add_argument("--asset",required=True)
         if x in ("link","unlink"):
             sub.add_argument("--record",required=True)
@@ -36,13 +36,16 @@ def main():
         if x in ("audit","history"):
             sub.add_argument("--asset",required=(x=="history"))
     a=p.parse_args()
-    setup_lifecycle(ASSETS,ROOT)
+    from asset_security_v9 import setup_security,scan_pending
+    setup_security(ASSETS,ROOT)
     if a.action=="init":out={"state":"ready","assets_root":str(ASSETS)}
     elif a.action=="stage":
         out=stage_new(ASSETS,IDENTITY,Path(a.source),"demo-editor",a.actor,
                       a.name,a.mime,a.visibility)
     elif a.action=="stage-revision":
         out=stage_revision(ASSETS,IDENTITY,Path(a.source),a.asset,a.actor,a.mime)
+    elif a.action=="scan":
+        out=scan_pending(ASSETS,IDENTITY,a.asset,a.actor)
     elif a.action in ("approve","reject"):
         out=review(ASSETS,IDENTITY,a.asset,a.actor,
                    "approved" if a.action=="approve" else "rejected")
