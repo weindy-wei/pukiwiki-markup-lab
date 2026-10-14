@@ -6,7 +6,7 @@ const client=new ProjectClient();
 const state={
   projects:[],projectId:null,manifest:null,sheetIndex:1,meta:null,
   page:null,pageNum:1,cursor:null,cursorHistory:[],
-  query:{q:"",field:null,value:null},mode:"grid",
+  query:{q:"",field:null,value:null,kind:"string",op:"eq"},mode:"grid",
   selectedId:null,detail:null,generation:0,connected:false
 };
 const limits={grid:50,thumb:24,detail:50};
@@ -57,6 +57,10 @@ function updateFieldPicker(){
   picker.value=state.query.field??"";
   $("filter-value").disabled=!picker.value;
   $("filter-value").value=state.query.value??"";
+  $("filter-kind").value=state.query.kind??"string";
+  $("filter-kind").disabled=!picker.value;
+  $("filter-op").value=state.query.op??"eq";
+  $("filter-op").disabled=!picker.value||$("filter-kind").value!=="number";
   $("search").value=state.query.q;
 }
 function updateHeader(){
@@ -184,7 +188,8 @@ async function loadPage(cursor=null,history=[],query=state.query){
   try{
     const response=await client.page(state.projectId,{
       sheet:state.sheetIndex,limit:limits[state.mode],cursor,
-      q:query.q,field:query.field,value:query.value
+      q:query.q,field:query.field,value:query.value,
+      kind:query.kind??"string",op:query.op??"eq"
     });
     if(!isActive(generation))return;
     state.page=response;state.query={...query};
@@ -205,7 +210,7 @@ async function switchProject(id){
     if(!isActive(generation))return;
     state.projectId=id;state.manifest=m;state.mode="grid";
     state.sheetIndex=m.sheets[0]?.sheet_index??1;
-    state.meta=m.sheets[0]??null;state.query={q:"",field:null,value:null};
+    state.meta=m.sheets[0]??null;state.query={q:"",field:null,value:null,kind:"string",op:"eq"};
     state.page=null;state.pageNum=1;state.cursor=null;state.cursorHistory=[];
     state.selectedId=null;state.detail=null;
     redraw();
@@ -219,7 +224,7 @@ async function switchSheet(index){
   const meta=state.manifest?.sheets.find(s=>s.sheet_index===index);
   if(!meta)return;
   state.sheetIndex=index;state.meta=meta;state.mode="grid";
-  state.query={q:"",field:null,value:null};state.page=null;state.pageNum=1;
+  state.query={q:"",field:null,value:null,kind:"string",op:"eq"};state.page=null;state.pageNum=1;
   state.cursor=null;state.cursorHistory=[];state.detail=null;
   redraw();await loadPage();
 }
@@ -268,15 +273,24 @@ $("query-form").addEventListener("submit",async e=>{
   const q=$("search").value.trim();
   const fieldRaw=$("filter-field").value;
   const query={q,field:fieldRaw?Number(fieldRaw):null,
-               value:fieldRaw?$("filter-value").value:null};
+               value:fieldRaw?$("filter-value").value:null,
+               kind:fieldRaw?$("filter-kind").value:"string",
+               op:fieldRaw&&$("filter-kind").value==="number"?$("filter-op").value:"eq"};
   await loadPage(null,[],query);
 });
 $("filter-field").addEventListener("change",e=>{
   $("filter-value").disabled=!e.target.value;
+  $("filter-kind").disabled=!e.target.value;
+  $("filter-op").disabled=!e.target.value||$("filter-kind").value!=="number";
   if(!e.target.value)$("filter-value").value="";
 });
+$("filter-kind").addEventListener("change",e=>{
+  const numeric=e.target.value==="number";
+  $("filter-op").disabled=!numeric||!$("filter-field").value;
+  if(!numeric)$("filter-op").value="eq";
+});
 $("reset-query").addEventListener("click",async ()=>{
-  state.query={q:"",field:null,value:null};updateFieldPicker();
+  state.query={q:"",field:null,value:null,kind:"string",op:"eq"};updateFieldPicker();
   await loadPage(null,[],state.query);
 });
 $("previous-page").addEventListener("click",async ()=>{
