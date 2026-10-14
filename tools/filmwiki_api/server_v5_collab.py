@@ -13,7 +13,7 @@ from editor_store import (manifest,list_records,record,history,change,
                           verify_history,get_meta,InvalidEdit,
                           VersionConflict,DuplicateRequest,MissingRecord)
 from workflow_v5 import batch_change,relation
-from collab_auth import login,session,logout,require_role
+from collab_auth import login,session,logout,require_role,list_active_members
 
 ORIGINS={"http://127.0.0.1:8080","http://localhost:8080"}
 HOST="127.0.0.1"
@@ -93,6 +93,12 @@ class Handler(ResponseHandler):
                 return self.respond(200,{"user_id":user["user_id"],
                    "username":user["username"],"memberships":user["memberships"]},origin)
             require_role(user,self.server.project_id,"read")
+            if urlsplit(self.path).path=="/v5/members":
+                if urlsplit(self.path).query:raise InvalidEdit("Unexpected query")
+                return self.respond(200,{"project_id":self.server.project_id,
+                       "members":list_active_members(self.server.auth_db,self.server.project_id)},origin)
+            can_edit=any(x["project_id"]==self.server.project_id and
+                         x["role"] in ("editor","owner") for x in user["memberships"])
             u=urlsplit(self.path)
             q=parse_qs(u.query,keep_blank_values=True)
             if any(len(x)!=1 for x in q.values()):raise InvalidEdit("Duplicate query fields")
@@ -100,8 +106,7 @@ class Handler(ResponseHandler):
                 if q:raise InvalidEdit("Unexpected query")
                 result=manifest(self.server.editor_db)
                 # Viewers may inspect field names but cannot change fields.
-                if not any(x["project_id"]==self.server.project_id and
-                  x["role"] in ("editor","owner") for x in user["memberships"]):
+                if not can_edit:
                     for sheet in result["sheets"]:
                         for col in sheet["fields"]:col["editable"]=False
             elif u.path=="/v5/records":
@@ -110,6 +115,9 @@ class Handler(ResponseHandler):
                 result=list_records(self.server.editor_db,int(q["sheet"][0]),
                                     int(q.get("after",["1"])[0]),
                                     int(q.get("limit",["25"])[0]),q.get("q",[""])[0])
+                if not can_edit:
+                    for item in result["records"]:
+                        for cell in item["cells"]:cell["editable"]=False
             elif u.path in ("/v5/record","/v5/history","/v5/relationship"):
                 if set(q)!={"sheet","id"}:raise InvalidEdit("Invalid query")
                 si=int(q["sheet"][0]);rid=q["id"][0]
@@ -118,9 +126,7 @@ class Handler(ResponseHandler):
                 result=(record(self.server.editor_db,si,rid) if u.path=="/v5/record"
                         else history(self.server.editor_db,si,rid) if u.path=="/v5/history"
                         else relation(self.server.editor_db,si,rid))
-                if u.path=="/v5/record" and not any(
-                   x["project_id"]==self.server.project_id and x["role"] in ("editor","owner")
-                   for x in user["memberships"]):
+                if u.path=="/v5/record" and not can_edit:
                     for field in result["cells"]:field["editable"]=False
             else:return self.respond(404,{"error":"route_not_found"},origin)
             return self.respond(200,result,origin)
