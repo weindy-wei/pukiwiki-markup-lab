@@ -6,7 +6,7 @@ credentials. No HTTP self-signup or arbitrary project grants; admin CLI only.
 """
 from contextlib import closing
 from datetime import datetime,timezone
-import hashlib,hmac,os,re,secrets,sqlite3,time,uuid
+import base64,hashlib,hmac,json,os,re,secrets,sqlite3,time,uuid
 from pathlib import Path
 
 USER_RE=re.compile(r"^[a-z][a-z0-9_.-]{2,31}$")
@@ -201,3 +201,77 @@ def list_active_members(db,project_id):
             "SELECT u.user_id,u.username,m.role FROM memberships m "
             "JOIN users u ON u.user_id=m.user_id WHERE m.project_id=? "
             "AND u.active=1 ORDER BY u.username,m.role",(project_id,))]
+
+
+# Native PukiWiki one-time SSO assertion exchange, short-lived and fail closed.
+# Exact project and issuing origin, independent from PHP session cookies.
+SSO_PROJECT="demo-editor"
+SSO_ISSUER="filmwiki-native-local"
+SSO_AUDIENCE="filmwiki-collab-local"
+
+def setup_sso(db):
+    with closing(connect(db)) as con:
+        with con:
+            con.execute("CREATE TABLE IF NOT EXISTS sso_used_jti("
+                        "nonce_hash TEXT PRIMARY KEY, expires_at INTEGER NOT NULL)")
+            con.execute("CREATE INDEX IF NOT EXISTS sso_expiry "
+                        "ON sso_used_jti(expires_at)")
+    return True
+
+def redeem_sso(db,assertion,signature,secret_hex,now=None):
+    now=int(time.time()) if now is None else int(now)
+    if not isinstance(assertion,str) or not re.fullmatch(r"[A-Za-z0-9_-]{120,1200}",assertion) \
+       or not isinstance(signature,str) or not re.fullmatch(r"[0-9a-f]{64}",signature):
+        return None
+    if not isinstance(secret_hex,str) or not re.fullmatch(r"[a-f0-9]{64}",secret_hex):
+        raise ValueError("Invalid SSO secret configuration")
+    correct=hmac.new(bytes.fromhex(secret_hex),assertion.encode("ascii"),hashlib.sha256).hexdigest()
+    if not hmac.compare_digest(signature,correct):
+        return None
+    try:
+        decoded=base64.urlsafe_b64decode(assertion+"="*((-len(assertion))%4))
+        content=json.loads(decoded)
+    except (ValueError,TypeError,UnicodeError,OverflowError):
+        return None
+    if not isinstance(content,dict) or set(content)!={"v","iss","aud","sub","iat","exp","jti"}:
+        return None
+    if content["v"]!=1 or content["iss"]!=SSO_ISSUER or content["aud"]!=SSO_AUDIENCE:
+        return None
+    if type(content["iat"]) is not int or type(content["exp"]) is not int or \
+       not now-45<=content["iat"]<=now+5 or \
+       not now<content["exp"]<=content["iat"]+45:
+        return None
+    if type(content["sub"]) is not str or not re.fullmatch(
+         r"user:[a-f0-9-]{36}",content["sub"]):
+        return None
+    if type(content["jti"]) is not str or not re.fullmatch(r"[a-f0-9]{48}",content["jti"]):
+        return None
+    hashed_jti=hashlib.sha256(content["jti"].encode("ascii")).hexdigest()
+    with closing(connect(db)) as con:
+        try:
+            con.execute("BEGIN IMMEDIATE")
+            user=con.execute("SELECT user_id,username,active FROM users WHERE user_id=?",
+                             (content["sub"],)).fetchone()
+            if not user or not user["active"]:
+                con.execute("ROLLBACK");return None
+            can_read=con.execute("SELECT 1 FROM memberships WHERE project_id=? AND user_id=? "
+                                 "AND role IN ('viewer','editor','reviewer','publisher','owner') LIMIT 1",
+                                 (SSO_PROJECT,content["sub"])).fetchone()
+            if not can_read:
+                con.execute("ROLLBACK");return None
+            if con.execute("SELECT 1 FROM sso_used_jti WHERE nonce_hash=?",
+                           (hashed_jti,)).fetchone():
+                con.execute("ROLLBACK");return None
+            con.execute("INSERT INTO sso_used_jti VALUES(?,?)",(hashed_jti,content["exp"]))
+            # Keep replay proofs longer than the assertion's validity,
+            # periodic clean-up removes already-expired entries.
+            con.execute("DELETE FROM sso_used_jti WHERE expires_at<?",(now-120,))
+            token=secrets.token_hex(48)
+            con.execute("INSERT INTO sessions VALUES(?,?,?,?)",
+                        (_token_hash(token),user["user_id"],now,now+SESSION_SECONDS))
+            con.execute("COMMIT")
+            return {"access_token":token,"expires_in":SESSION_SECONDS,
+                    "user_id":user["user_id"],"username":user["username"]}
+        except Exception:
+            if con.in_transaction:con.execute("ROLLBACK")
+            raise

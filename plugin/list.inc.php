@@ -24,6 +24,8 @@ function plugin_list_getlist($withfilename = FALSE)
 	global $non_list, $whatsnew;
 
 	$pages = array_diff(get_existpages(), array($whatsnew));
+	// Step33: list/filelist must not expose unreadable project page names.
+	$pages = array_values(array_filter($pages,'is_page_readable'));
 	if (! $withfilename)
 		$pages = array_diff($pages, preg_grep('/' . $non_list . '/S', $pages));
 	if (empty($pages)) return '';

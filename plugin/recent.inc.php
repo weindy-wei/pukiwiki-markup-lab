@@ -56,8 +56,12 @@ function plugin_recent_convert()
 	$lines = file_head(PLUGIN_RECENT_CACHE, $recent_lines);
 	if ($lines == FALSE) return '#recent(): File can not open' . '<br />' . "\n";
 	$date = $items = '';
+	$visible_lines = 0;
 	foreach ($lines as $line) {
 		list($time, $page) = explode("\t", rtrim($line));
+		// Step33: sidebar recent activity must not expose private page names.
+		if (!is_page_readable($page)) continue;
+		++$visible_lines;
 
 		$_date = get_date($date_format, $time);
 		if ($date != $_date) {
@@ -85,5 +89,5 @@ function plugin_recent_convert()
 	// End of the day
 	if ($date != '') $items .= '</ul>' . "\n";
 
-	return sprintf($_recent_plugin_frame, count($lines), $items);
+	return sprintf($_recent_plugin_frame, $visible_lines, $items);
 }

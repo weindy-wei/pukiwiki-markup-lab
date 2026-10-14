@@ -242,6 +242,8 @@ function plugin_backup_get_list_all($withfilename = FALSE)
 	global $cantedit;
 
 	$pages = array_diff(get_existpages(BACKUP_DIR, BACKUP_EXT), $cantedit);
+	// Step33: global backup listings must not reveal protected project page names.
+	$pages = array_values(array_filter($pages, 'is_page_readable'));
 
 	if (empty($pages)) {
 		return '';

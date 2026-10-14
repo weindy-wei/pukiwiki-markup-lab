@@ -5,3 +5,4 @@ services:
   php:
     volumes:
       - /home/administrator/filmwiki-data/private/collaboration-accounts.sqlite:/run/filmwiki/identity.sqlite:ro
+      - /home/administrator/filmwiki-data/private/step33-sso-secret.key:/run/filmwiki/step33-sso-key:ro
