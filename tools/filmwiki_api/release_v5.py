@@ -164,10 +164,12 @@ def publish_release(release_root,release_id,actor=ACTOR):
               "snapshot_sha256":manifest["source_snapshot_sha256"],
               "http_deployed":False,"original_source_modified":False}
     _save_new(directory/"publication.json",finished)
-    for file in directory.iterdir():
-        os.chmod(file,0o400)
-    os.chmod(directory,0o500)
+    # Rename first: permission-locking the source directory can deny rename
+    # on some filesystems. Only seal the artifact after successful promotion.
     os.rename(directory,target)
+    for file in target.iterdir():
+        os.chmod(file,0o400)
+    os.chmod(target,0o500)
     return finished
 
 def inspect_release(root,release_id,where="published"):
