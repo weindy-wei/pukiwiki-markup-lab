@@ -32,6 +32,7 @@ function plugin_deleted_action()
 		get_existpages($_DIR[$dir]['dir'], $_DIR[$dir]['ext']),
 		get_existpages());
 
+	$deleted_pages = array_values(array_filter($deleted_pages, 'is_page_readable'));
 	if ($withfilename) {
 		$retval['msg'] = $_deleted_plugin_title_withfilename;
 	} else {
