@@ -1,5 +1,5 @@
 """Step37 durable queues, retry, role-filtered inbox, safely escaped previews."""
-import hashlib,json,sqlite3,sys,tempfile,threading,unittest
+import hashlib,json,sqlite3,sys,tempfile,threading,unittest,time
 from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor
 from unittest.mock import patch
@@ -135,12 +135,14 @@ class QueueTests(unittest.TestCase):
   self.assertFalse(inert_text_preview(self.assets,self.r,aid)["available"])
  def test_12_stale_lease_result_must_not_update_new_lease(self):
   aid=self.stage();enqueue(self.assets,self.db,aid,self.owner["user_id"])
-  job=claim_one(self.assets,now=1000)
+  epoch=int(time.time())
+  job=claim_one(self.assets,now=epoch)
+  self.assertIsNotNone(job)
   with sqlite3.connect(self.assets/"catalog.sqlite") as c:
    c.execute("UPDATE asset_scan_jobs SET leased_at=0 WHERE job_id=?",(job["job_id"],))
-  newer=claim_one(self.assets,now=1200)
+  newer=claim_one(self.assets,now=epoch+200)
   self.assertNotEqual(job["lease_id"],newer["lease_id"])
-  with self.assertRaises(RuntimeError):_finish(self.assets,job,"done","clean",now=1200)
+  with self.assertRaises(RuntimeError):_finish(self.assets,job,"done","clean",now=epoch+200)
  def test_13_unknown_or_removed_asset_not_exposed(self):
   aid=self.stage()
   self.assertIsNone(inert_text_preview(self.assets,self.r,"abcd"))
