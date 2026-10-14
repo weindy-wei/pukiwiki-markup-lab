@@ -3,6 +3,8 @@ const BASE="http://127.0.0.1:8094";
 const $=id=>document.getElementById(id);
 let manifest=null,current=null,loaded=null,sheet=1,historyRows=[];
 let pageAfter=1,pageStack=[],search="",busy=false;
+const pendingEdits=new Map();
+let currentRelation=null;
 function node(tag,text,className){
   const n=document.createElement(tag);
   if(text!==undefined)n.textContent=String(text);
@@ -62,6 +64,7 @@ async function loadPage(after=1,stack=[]){
     $("record-version").textContent="—";
     $("edit-field").replaceChildren();
     $("edit-value").value="";$("edit-reason").value="";
+    $("parent-tools").hidden=true;currentRelation=null;
     showRecords();status("已加载 "+page.count+" 条记录（本页）。");
   }catch(e){status(e.message,true);}
   finally{busy=false;updatePaging();}
@@ -110,8 +113,9 @@ async function loadRecord(id){
   try{
     const detail=await request("/v4/record?"+qs({sheet,id}));
     const audit=await request("/v4/history?"+qs({sheet,id}));
-    current=detail;historyRows=audit.events;
-    renderFields();renderHistory();showRecords();
+    const relationship=await request("/v4/relationship?"+qs({sheet,id}));
+    current=detail;historyRows=audit.events;currentRelation=relationship.relation;
+    renderFields();renderHistory();renderRelation();showRecords();
     status("记录版本 v"+current.version+"，审计事件 "+historyRows.length+" 条。");
   }catch(e){status(e.message,true);}
 }
@@ -150,6 +154,90 @@ $("next-page").addEventListener("click",()=>{
   if(loaded?.next_after)loadPage(loaded.next_after,[...pageStack,pageAfter]);
 });
 $("edit-field").addEventListener("change",fillValueFromSelected);
+function renderQueue(){
+  const entries=[...pendingEdits.values()];
+  $("batch-summary").textContent=entries.length
+    ?entries.map(x=>x.record_id+" · 字段 "+x.column_index+" · v"+x.expected_version).join("\n")
+    :"尚未加入待提交记录";
+  $("batch-submit").disabled=entries.length===0||busy;
+  $("batch-clear").disabled=entries.length===0||busy;
+}
+function renderRelation(){
+  const area=$("parent-tools");
+  area.hidden=!currentRelation;
+  const options=$("parent-candidate");options.replaceChildren();
+  if(!currentRelation)return;
+  $("parent-explanation").textContent=
+    "原始标签："+currentRelation.label+"；状态："+currentRelation.import_status+
+    "；当前选择："+(currentRelation.parent_record_id??"尚未明确");
+  for(const id of currentRelation.candidate_record_ids){
+    const opt=node("option",id);opt.value=id;
+    options.append(opt);
+  }
+  if(currentRelation.parent_record_id)options.value=currentRelation.parent_record_id;
+  $("parent-submit").disabled=!options.options.length;
+}
+$("batch-add").addEventListener("click",()=>{
+  if(!current)return status("先选择记录",true);
+  const column_index=Number($("edit-field").value);
+  if(!column_index||!current.cells.some(f=>f.index===column_index&&f.editable))
+    return status("字段不可编辑",true);
+  const value=$("edit-value").value;
+  const cell=current.cells.find(f=>f.index===column_index);
+  if(cell.value===value)return status("新值必须与当前值不同",true);
+  if(pendingEdits.size>=20&&!pendingEdits.has(current.record_id))
+    return status("批量清单最多 20 条",true);
+  pendingEdits.set(current.record_id,{
+    kind:"cell",sheet_index:sheet,record_id:current.record_id,
+    column_index,value,expected_version:current.version
+  });
+  renderQueue();
+  status("已加入批量清单："+pendingEdits.size+" 条");
+});
+$("batch-clear").addEventListener("click",()=>{
+  pendingEdits.clear();renderQueue();status("批量清单已清空");
+});
+$("batch-submit").addEventListener("click",async()=>{
+  if(!pendingEdits.size||busy)return;
+  const reason=$("edit-reason").value.trim();
+  if(reason.length<3)return status("批量提交需要至少三个字的修改原因",true);
+  if(!globalThis.crypto?.randomUUID)return status("浏览器不支持 UUID",true);
+  busy=true;renderQueue();
+  try{
+    const result=await request("/v4/batch",{
+      project_id:manifest.project.id,operations:[...pendingEdits.values()],
+      reason,batch_id:globalThis.crypto.randomUUID()
+    });
+    pendingEdits.clear();$("edit-reason").value="";
+    busy=false;renderQueue();
+    await loadPage(pageAfter,pageStack);
+    status("批量提交成功，共 "+result.audit_events+" 条变更，已在单个事务中提交。",false,true);
+  }catch(e){
+    busy=false;renderQueue();
+    status(e.conflict?"版本冲突：整批回滚，请刷新相关记录后重新加入。":e.message,true);
+  }
+});
+$("parent-submit").addEventListener("click",async()=>{
+  if(!current||!currentRelation||busy)return;
+  const parent=$("parent-candidate").value;
+  if(!parent)return status("没有可选的候选父镜头",true);
+  if(parent===currentRelation.parent_record_id)return status("父记录尚未变化",true);
+  const reason=$("edit-reason").value.trim()||"确认重复镜头号对应的父记录";
+  const id=current.record_id;
+  busy=true;
+  try{
+    const result=await request("/v4/batch",{
+      project_id:manifest.project.id,
+      operations:[{kind:"parent",sheet_index:sheet,record_id:id,
+                   parent_record_id:parent,expected_version:current.version}],
+      reason,batch_id:globalThis.crypto.randomUUID()
+    });
+    await loadRecord(id);
+    status("父镜头记录已明确，修订版本 v"+result.changes[0].version,false,true);
+  }catch(e){status(e.message,true);}
+  finally{busy=false;}
+});
+renderQueue();
 $("edit-form").addEventListener("submit",async(e)=>{
   e.preventDefault();
   if(!current||busy)return;
