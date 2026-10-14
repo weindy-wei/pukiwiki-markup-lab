@@ -101,6 +101,15 @@ function plugin_attach_action()
 	if ($refer === '' && $page !== '') {
 		$refer = $page;
 	}
+	// Step33: managed-page attachments remain fully quarantined.
+	// This also catches malformed/unknown commands and upload requests.
+	if (function_exists('filmwiki_unified_is_managed_page') &&
+	    (filmwiki_unified_is_managed_page($refer) || filmwiki_unified_is_managed_page($page))) {
+		header('HTTP/1.1 403 Forbidden');
+		header('Cache-Control: no-store');
+		return array('msg'=>'Attachment access disabled', 'body'=>'Protected project attachments are disabled.');
+	}
+
 	if ($refer != '' && is_pagename($refer)) {
 		if(in_array($pcmd, array('info', 'open', 'list'))) {
 			check_readable($refer);
