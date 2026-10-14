@@ -13,7 +13,7 @@ from editor_store import (manifest,list_records,record,history,change,
                           verify_history,get_meta,InvalidEdit,
                           VersionConflict,DuplicateRequest,MissingRecord)
 from workflow_v5 import batch_change,relation
-from collab_auth import login,session,logout,require_role,list_active_members
+from collab_auth import login,session,logout,require_role,list_active_members,setup_sso,redeem_sso
 
 ORIGINS={"http://127.0.0.1:8080","http://localhost:8080"}
 HOST="127.0.0.1"
@@ -22,11 +22,20 @@ MAX_BODY=16384
 class CollabServer(ThreadingHTTPServer):
     daemon_threads=True
     allow_reuse_address=True
-    def __init__(self,address,auth_db,editor_db,project_id):
+    def __init__(self,address,auth_db,editor_db,project_id,sso_secret_file=None):
         if address[0]!=HOST:raise ValueError("Collaboration pilot must be loopback-only")
         self.auth_db=Path(auth_db)
         self.editor_db=Path(editor_db)
         self.project_id=project_id
+        self.sso_hex=None
+        if sso_secret_file is not None:
+            secret_path=Path(sso_secret_file).resolve(strict=True)
+            if not secret_path.is_file() or not secret_path.is_relative_to(Path(auth_db).resolve().parent):
+                raise ValueError("SSO secret must reside in private identity directory")
+            self.sso_hex=secret_path.read_text(encoding="ascii").strip()
+            if not re.fullmatch("[a-f0-9]{64}",self.sso_hex):
+                raise ValueError("Invalid SSO secret")
+        setup_sso(auth_db)
         super().__init__(address,Handler)
 
 class Handler(ResponseHandler):
@@ -141,7 +150,7 @@ class Handler(ResponseHandler):
         if origin is None:return
         path=urlsplit(self.path)
         if path.query:return self.respond(400,{"error":"invalid_path"},origin)
-        if path.path not in ("/v5/login","/v5/logout","/v5/edit","/v5/batch"):
+        if path.path not in ("/v5/login","/v5/sso","/v5/logout","/v5/edit","/v5/batch"):
             return self.respond(404,{"error":"route_not_found"},origin)
         try:body=self._body()
         except (ValueError,TypeError,json.JSONDecodeError):
@@ -151,6 +160,16 @@ class Handler(ResponseHandler):
                 return self.respond(400,{"error":"invalid_body"},origin)
             result=login(self.server.auth_db,body["username"],body["password"])
             if result is None:return self.respond(401,{"error":"invalid_credentials"},origin)
+            return self.respond(200,{"format":"filmwiki-session","version":1,**result},origin)
+        if path.path=="/v5/sso":
+            if set(body)!={"assertion","signature"}:
+                return self.respond(400,{"error":"invalid_sso_request"},origin)
+            if self.server.sso_hex is None:
+                return self.respond(503,{"error":"sso_unavailable"},origin)
+            result=redeem_sso(self.server.auth_db,body["assertion"],
+                              body["signature"],self.server.sso_hex)
+            if result is None:
+                return self.respond(401,{"error":"sso_rejected"},origin)
             return self.respond(200,{"format":"filmwiki-session","version":1,**result},origin)
         user=self._identity(origin)
         if user is None:return
@@ -194,6 +213,7 @@ def main():
     p.add_argument("--editor-db",required=True,type=Path)
     p.add_argument("--project-id",required=True)
     p.add_argument("--port",default=8098,type=int)
+    p.add_argument("--sso-secret-file",type=Path)
     a=p.parse_args()
     root=a.data_root.resolve(strict=True)
     for x in (a.auth_db,a.editor_db):
@@ -203,7 +223,7 @@ def main():
     if get_meta(a.editor_db)["project_id"]!=a.project_id:
         p.error("Editor project ID mismatch")
     verify_history(a.editor_db)
-    with CollabServer((HOST,a.port),a.auth_db,a.editor_db,a.project_id) as app:
+    with CollabServer((HOST,a.port),a.auth_db,a.editor_db,a.project_id,a.sso_secret_file) as app:
         print("FilmWiki Step31 private collaboration on 127.0.0.1:"+str(a.port),flush=True)
         app.serve_forever(poll_interval=.4)
 
