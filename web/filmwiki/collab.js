@@ -112,6 +112,27 @@ async function openRecord(id){
   feedback("已载入 v"+detail.version+"，历史 "+audit.events.length+" 条。");
  }catch(err){feedback(err.message,"error");}
 }
+async function completeLogin(auth){
+ token=auth.access_token;
+ $("password").value="";
+ me=await call("/v5/me");
+ const loaded=await call("/v5/manifest");
+ const directory=await call("/v5/members");
+ manifest=loaded;members=new Map(directory.members.map(x=>[x.user_id,x.username]));
+ $("current-user").textContent=me.username;
+ $("project-name").textContent=loaded.project.id;
+ $("my-role").textContent=me.memberships
+     .filter(x=>x.project_id===loaded.project.id).map(x=>x.role).join("、")||"无权限";
+ const select=$("sheet");select.replaceChildren();
+ for(const item of loaded.sheets){
+   const opt=text("option",item.name+" ("+item.record_count+")");
+   opt.value=item.sheet_index;select.append(opt);
+ }
+ sheet=loaded.sheets[0]?.sheet_index??1;
+ busy=false;
+ await loadPage();
+ $("login-panel").hidden=true;$("workspace").hidden=false;
+}
 $("login-form").addEventListener("submit",async e=>{
  e.preventDefault();if(busy)return;busy=true;
  $("login-button").disabled=true;
@@ -119,31 +140,48 @@ $("login-form").addEventListener("submit",async e=>{
  feedback("正在验证身份…");
  try{
   const auth=await call("/v5/login",{username:name,password},null);
-  token=auth.access_token;
-  $("password").value="";
-  me=await call("/v5/me");
-  const loaded=await call("/v5/manifest");
-  const directory=await call("/v5/members");
-  manifest=loaded;members=new Map(directory.members.map(x=>[x.user_id,x.username]));
-  // Do not expose interactive controls until the initial sheet load is done.
-  $("current-user").textContent=me.username;
-  $("project-name").textContent=loaded.project.id;
-  $("my-role").textContent=me.memberships
-     .filter(x=>x.project_id===loaded.project.id).map(x=>x.role).join("、")||"无权限";
-  const select=$("sheet");select.replaceChildren();
-  for(const item of loaded.sheets){
-   const opt=text("option",item.name+" ("+item.record_count+")");
-   opt.value=item.sheet_index;select.append(opt);
-  }
-  sheet=loaded.sheets[0]?.sheet_index??1;
-  busy=false;await loadPage();
-  $("login-panel").hidden=true;$("workspace").hidden=false;
+  await completeLogin(auth);
  }catch(err){
   if(token){try{await call("/v5/logout",{});}catch{}}
   token=null;me=null;
   feedback("登录失败："+err.message,"error");
  }finally{busy=false;$("login-button").disabled=false;}
 });
+async function tryNativeSSO(quiet=false){
+ if(busy||token)return;
+ busy=true;$("sso-button").disabled=true;
+ try{
+  const endpoint="/index.php?plugin=fwsso";
+  const options={credentials:"same-origin",cache:"no-store",
+     redirect:"error",referrerPolicy:"no-referrer"};
+  const check=await globalThis.fetch(endpoint,{...options,method:"GET"});
+  if(!check.ok)throw Error("请先登录 PukiWiki");
+  const challenge=await check.json();
+  if(!challenge.authenticated||!(/^[a-f0-9]{64}$/.test(challenge.csrf))){
+    throw Error("Wiki 身份会话尚未就绪");
+  }
+  const post=await globalThis.fetch(endpoint,{
+    ...options,method:"POST",
+    headers:{"Content-Type":"application/x-www-form-urlencoded"},
+    body:new URLSearchParams({csrf:challenge.csrf}).toString()
+  });
+  if(!post.ok)throw Error("无法验证当前 Wiki 会话");
+  const proof=await post.json();
+  const auth=await call("/v5/sso",{
+    assertion:proof.assertion,signature:proof.signature
+  },null);
+  await completeLogin(auth);
+  feedback("已使用当前 Wiki 身份进入协作项目。","success");
+ }catch(err){
+  if(token){try{await call("/v5/logout",{});}catch{}}
+  token=null;me=null;
+  if(!quiet)feedback(err.message+"；也可以使用下方账号密码登录。","error");
+ }finally{busy=false;$("sso-button").disabled=false;}
+}
+$("sso-button").addEventListener("click",()=>tryNativeSSO(false));
+// On an already signed-in Wiki tab, enter without retyping credentials.
+// Failure is quiet, preserving the original password login flow.
+void tryNativeSSO(true);
 $("logout").addEventListener("click",async()=>{
  try{if(token)await call("/v5/logout",{});}
  catch{}
