@@ -1,0 +1,22 @@
+[Unit]
+Description=FilmWiki Step37 owner-local synthetic ClamAV scan queue (no web upload)
+After=clamav-freshclam.service
+ConditionPathExists=/home/administrator/filmwiki-data/private/assets-step34/catalog.sqlite
+
+[Service]
+Type=oneshot
+User=administrator
+Group=administrator
+WorkingDirectory=/home/administrator/filmwiki-data
+Environment=PYTHONDONTWRITEBYTECODE=1
+ExecStart=/usr/bin/python3 /home/administrator/filmwiki-data/services/asset_scan_worker_v10.py --limit 2
+TimeoutStartSec=170
+UMask=0077
+NoNewPrivileges=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=/home/administrator/filmwiki-data/private
+RestrictAddressFamilies=AF_UNIX
+
