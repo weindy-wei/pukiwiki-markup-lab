@@ -1,0 +1,25 @@
+[Unit]
+Description=FilmWiki Step31 private multi-user collaboration pilot (synthetic only)
+After=network.target
+ConditionPathExists=/home/administrator/filmwiki-data/private/collaboration-accounts.sqlite
+ConditionPathExists=/home/administrator/filmwiki-data/editing/step31-collaboration.sqlite
+
+[Service]
+Type=simple
+User=administrator
+Group=administrator
+WorkingDirectory=/home/administrator/filmwiki-data
+Environment=PYTHONDONTWRITEBYTECODE=1
+ExecStart=/usr/bin/python3 /home/administrator/filmwiki-data/services/server_v5_collab.py --data-root /home/administrator/filmwiki-data --auth-db /home/administrator/filmwiki-data/private/collaboration-accounts.sqlite --editor-db /home/administrator/filmwiki-data/editing/step31-collaboration.sqlite --project-id demo-editor --port 8098
+Restart=on-failure
+RestartSec=3s
+UMask=0077
+NoNewPrivileges=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectSystem=strict
+ReadWritePaths=/home/administrator/filmwiki-data/editing /home/administrator/filmwiki-data/private
+RestrictAddressFamilies=AF_UNIX AF_INET
+
+[Install]
+WantedBy=multi-user.target

@@ -308,6 +308,9 @@ def change(db,project_id,sheet,rid,column,value,expected_version,reason,request_
             con.execute("BEGIN IMMEDIATE")
             meta=con.execute("SELECT project_id,source_sha FROM editor_meta").fetchone()
             if meta is None or meta["project_id"]!=project_id:raise InvalidEdit("Project mismatch")
+            if actor.startswith("user:"):
+                from workflow_v5 import authorize
+                authorize(con,project_id,actor,"batch_edit")
             row=con.execute(
                 "SELECT r.record_id,v.version FROM records r "
                 "JOIN record_versions v ON v.record_id=r.record_id "
