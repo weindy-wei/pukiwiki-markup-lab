@@ -52,7 +52,10 @@ def main():
     elif a.action in ("link","unlink"):
         out=link(ASSETS,IDENTITY,EDITOR,a.asset,a.actor,
                  a.record,a.relation,remove=(a.action=="unlink"))
-    elif a.action=="history":out=history(ASSETS,a.asset)
+    elif a.action=="history":
+        from asset_lifecycle_v8 import _actor
+        _actor(IDENTITY,a.actor,"demo-editor")
+        out=history(ASSETS,a.asset)
     else:out=audit(ASSETS,a.asset)
     print(json.dumps(out,ensure_ascii=False,sort_keys=True))
 if __name__=="__main__":main()
