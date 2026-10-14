@@ -29,7 +29,7 @@ function filmwiki_unified_actor($uid) {
     $db = filmwiki_unified_store();
     if ($db === null) return null;
     try {
-        $stmt = $db->prepare('SELECT user_id,username,active FROM users WHERE user_id=:uid');
+        $stmt = $db->prepare('SELECT user_id,username,active,password_hash FROM users WHERE user_id=:uid');
         $stmt->bindValue(':uid', $uid, SQLITE3_TEXT);
         $u = $stmt->execute()->fetchArray(SQLITE3_ASSOC);
         if (!$u || (int)$u['active'] !== 1) return null;
@@ -39,7 +39,12 @@ function filmwiki_unified_actor($uid) {
         $rs = $stmt->execute();
         $roles = array();
         while ($r = $rs->fetchArray(SQLITE3_ASSOC)) $roles[] = $r['role'];
-        return array('user_id'=>$u['user_id'], 'username'=>$u['username'], 'roles'=>$roles);
+        sort($roles, SORT_STRING);
+        // Bind PHP native sessions to both password revision and exact ACL.
+        // Role or password changes revoke existing Wiki sessions on next read.
+        $guard = hash('sha256', $u['user_id']."\n".$u['password_hash']."\n".implode(",",$roles));
+        return array('user_id'=>$u['user_id'], 'username'=>$u['username'],
+                     'roles'=>$roles, 'session_guard'=>$guard);
     } catch (Throwable $e) {
         return null;
     } finally {
@@ -56,8 +61,10 @@ function filmwiki_unified_refresh($page) {
     if (session_status() !== PHP_SESSION_ACTIVE) session_start();
     $uid = isset($_SESSION['filmwiki_unified_uid']) ? $_SESSION['filmwiki_unified_uid'] : null;
     $actor = filmwiki_unified_actor($uid);
-    if (!$actor) {
-        unset($_SESSION['filmwiki_unified_uid']);
+    $expected=isset($_SESSION['filmwiki_unified_guard']) ? $_SESSION['filmwiki_unified_guard'] : '';
+    if (!$actor || !is_string($expected) ||
+        !hash_equals($actor['session_guard'], $expected)) {
+        unset($_SESSION['filmwiki_unified_uid'],$_SESSION['filmwiki_unified_guard']);
         // Clear any claimed Wiki username inherited from a stale unified session.
         if (isset($_SESSION['filmwiki_unified_username'])) {
             unset($_SESSION['authenticated_user'], $_SESSION['authenticated_user_fullname'],
