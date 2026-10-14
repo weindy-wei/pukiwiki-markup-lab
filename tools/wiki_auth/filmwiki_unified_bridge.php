@@ -86,6 +86,16 @@ function filmwiki_unified_refresh($page) {
     if ($write) $auth_user_groups[] = 'fw-demo-editor-edit';
     $auth_user_groups = array_values(array_unique($auth_user_groups));
 }
+function filmwiki_unified_edit_csrf_ok() {
+    if (!isset($_SERVER['REQUEST_METHOD']) || $_SERVER['REQUEST_METHOD'] !== 'POST') return true;
+    $origin=isset($_SERVER['HTTP_ORIGIN']) ? $_SERVER['HTTP_ORIGIN'] : '';
+    if ($origin !== 'http://127.0.0.1:8080' && $origin !== 'http://localhost:8080') return false;
+    if (session_status() !== PHP_SESSION_ACTIVE) session_start();
+    $expected=isset($_SESSION['filmwiki_csrf']) ? $_SESSION['filmwiki_csrf'] : '';
+    $supplied=isset($_POST['filmwiki_csrf']) ? $_POST['filmwiki_csrf'] : '';
+    return is_string($expected) && strlen($expected)===64 &&
+           is_string($supplied) && hash_equals($expected,$supplied);
+}
 function filmwiki_unified_login_password($username,$password) {
     if (!is_string($username) || !preg_match('/^[a-z][a-z0-9_.-]{2,31}$/D', $username) ||
         !is_string($password) || strlen($password)>300) return null;
