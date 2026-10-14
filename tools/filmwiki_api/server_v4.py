@@ -37,8 +37,10 @@ def require_private_token(path,root):
 def create_token(path):
     path=Path(path)
     if path.exists():raise FileExistsError("Existing token cannot be overwritten")
-    fd=path.open("x",encoding="utf-8",opener=lambda p,flags: __import__("os").open(p,flags,0o600))
-    with fd as stream:stream.write(secrets.token_hex(48)+"\n")
+    import os
+    descriptor=os.open(path,os.O_CREAT|os.O_EXCL|os.O_WRONLY|os.O_NOFOLLOW,0o600)
+    with os.fdopen(descriptor,"w",encoding="utf-8") as stream:
+        stream.write(secrets.token_hex(48)+"\n")
     return path
 
 
