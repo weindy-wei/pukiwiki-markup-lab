@@ -1,0 +1,20 @@
+[Unit]
+Description=FilmWiki verified FTS5 sidecar reconciliation
+After=network.target
+ConditionPathExists=/home/administrator/filmwiki-data/private/projects.json
+
+[Service]
+Type=oneshot
+User=root
+Group=root
+WorkingDirectory=/home/administrator/filmwiki-data
+Environment=PYTHONDONTWRITEBYTECODE=1
+ExecStart=/usr/bin/python3 /home/administrator/filmwiki-data/services/index_reconcile_supervisor.py
+TimeoutStartSec=15min
+UMask=0077
+NoNewPrivileges=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectSystem=strict
+ReadWritePaths=/home/administrator/filmwiki-data/indexes /home/administrator/filmwiki-data/reports
+RestrictAddressFamilies=AF_UNIX AF_INET
