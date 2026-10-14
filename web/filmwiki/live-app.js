@@ -75,7 +75,7 @@ function updateHeader(){
   $("kpi-loaded").textContent=visibleRows().length;
   $("result-count").textContent=visibleRows().length+" / page";
   $("footer-count").textContent=state.connected?
-    "第 "+state.pageNum+" 页，本页 "+visibleRows().length+" 条 · 游标分页，不全量加载":"等待连接";
+    "第 "+state.pageNum+" 页，本页 "+visibleRows().length+" 条 · "+(state.page?.search_backend??"服务端游标分页")+" · 不全量加载":"等待连接";
   $("page-info").textContent="第 "+state.pageNum+" 页";
   $("previous-page").disabled=!state.connected||state.cursorHistory.length===0;
   $("next-page").disabled=!state.connected||!state.page?.has_more;
