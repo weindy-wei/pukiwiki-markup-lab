@@ -168,7 +168,7 @@ def review_inbox(root,identity):
         raise PermissionError("Reviewer role required")
     with closing(_connect(root)) as c:
         rows=c.execute("SELECT a.asset_id,a.original_filename,a.owner_user_id,a.visibility,"
-             "a.pending_version AS version,v.scan_state,v.scan_time,v.sha256 "
+             "a.pending_version AS version,v.scan_state,v.scan_time,v.scan_digest,v.sha256 "
              "FROM assets a JOIN asset_versions v ON a.asset_id=v.asset_id "
              "AND a.pending_version=v.version WHERE a.project_id=? AND a.deleted_at IS NULL "
              "AND v.review_state='pending' ORDER BY a.created_utc,a.asset_id",(PROJECT,)).fetchall()
