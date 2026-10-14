@@ -55,7 +55,8 @@ function get_source($page = NULL, $lock = TRUE, $join = FALSE, $raw = FALSE)
 				$result = fread($fp, $size);
 				if ($result !== FALSE) {
 					if ($raw) {
-						return $result;
+						return ($page === 'RecentChanges' && function_exists('filmwiki_unified_redact_recent_changes'))
+							? filmwiki_unified_redact_recent_changes($result) : $result;
 					}
 					// Removing Carriage-Return
 					$result = str_replace("\r", '', $result);
@@ -76,6 +77,8 @@ function get_source($page = NULL, $lock = TRUE, $join = FALSE, $raw = FALSE)
 		}
 	}
 
+	if ($page === 'RecentChanges' && function_exists('filmwiki_unified_redact_recent_changes'))
+		return filmwiki_unified_redact_recent_changes($result);
 	return $result;
 }
 
