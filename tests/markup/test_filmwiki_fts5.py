@@ -89,7 +89,7 @@ class IndexTests(unittest.TestCase):
         numeric=read_indexed_page(self.project,TOKEN,1,field=3,value="200",kind="number",op="ge")
         self.assertEqual(numeric["count"],25)
         self.assertTrue(all(row["cells"][2]["value"]>=200 for row in numeric["records"]))
-        self.assertEqual(read_indexed_page(self.project,TOKEN,1,field=3,value="200",kind="number",op="lt")["count"],100)
+        self.assertEqual(read_indexed_page(self.project,TOKEN,1,field=3,value="200",kind="number",op="lt",limit=100)["count"],100)
         self.assertEqual(read_indexed_page(self.project,TOKEN,1,field=3,value="200",kind="number",op="eq")["count"],1)
         with self.assertRaises(ValueError):
             read_indexed_page(self.project,TOKEN,1,field=4,value="abc",kind="number",op="ge")
