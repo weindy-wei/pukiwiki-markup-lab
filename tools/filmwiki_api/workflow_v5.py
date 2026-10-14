@@ -58,11 +58,13 @@ def setup(db,project_id,owner=ACTOR):
         raise InvalidEdit("Invalid project")
     with closing(connect(db)) as con:
         try:
-            con.execute("BEGIN IMMEDIATE")
             meta=con.execute("SELECT project_id FROM editor_meta").fetchone()
             if not meta or meta["project_id"]!=project_id:
                 raise InvalidEdit("Working copy does not match project")
+            # sqlite3.executescript commits prior transactions. Migrate schema
+            # before beginning the atomic role-grant transaction.
             con.executescript(SCHEMA)
+            con.execute("BEGIN IMMEDIATE")
             # Only a server-internal owner identity, never an anonymous caller.
             for role in ("editor","reviewer","publisher"):
                 con.execute("INSERT OR IGNORE INTO workflow_role_grants VALUES(?,?,?)",
