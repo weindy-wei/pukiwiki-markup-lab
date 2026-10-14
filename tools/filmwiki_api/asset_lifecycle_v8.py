@@ -185,7 +185,9 @@ def stage_revision(root,identity_db,source,asset_id,actor_id,mime):
             if actor_id!=asset["owner_user_id"]:
                 raise PermissionError("Only uploading member can submit a new revision")
             _validate_filename(asset["original_filename"],mime)
-            version=asset["current_version"]+1
+            latest=c.execute("SELECT COALESCE(MAX(version),0) AS n FROM asset_versions "
+                             "WHERE asset_id=?",(asset_id,)).fetchone()["n"]
+            version=latest+1
             data=_stage_bytes(root,source,mime,asset_id,version)
             try:
                 c.execute("INSERT INTO asset_versions VALUES(?,?,?,?,?,?,?,?)",
