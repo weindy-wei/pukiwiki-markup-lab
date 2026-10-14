@@ -78,7 +78,7 @@ def setup(db,project_id,owner=ACTOR):
 
 def authorize(con,project_id,actor,action):
     required=ROLE_ACTIONS.get(action)
-    if required is None or actor!=ACTOR:
+    if required is None or (actor!=ACTOR and not re.fullmatch(r"user:[0-9a-f-]{36}",actor)):
         raise PermissionError("No approved local operator identity")
     if not con.execute(
         "SELECT 1 FROM workflow_role_grants WHERE project_id=? AND actor=? AND role=?",
