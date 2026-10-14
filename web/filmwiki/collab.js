@@ -125,7 +125,7 @@ $("login-form").addEventListener("submit",async e=>{
   const loaded=await call("/v5/manifest");
   const directory=await call("/v5/members");
   manifest=loaded;members=new Map(directory.members.map(x=>[x.user_id,x.username]));
-  $("login-panel").hidden=true;$("workspace").hidden=false;
+  // Do not expose interactive controls until the initial sheet load is done.
   $("current-user").textContent=me.username;
   $("project-name").textContent=loaded.project.id;
   $("my-role").textContent=me.memberships
@@ -137,6 +137,7 @@ $("login-form").addEventListener("submit",async e=>{
   }
   sheet=loaded.sheets[0]?.sheet_index??1;
   busy=false;await loadPage();
+  $("login-panel").hidden=true;$("workspace").hidden=false;
  }catch(err){
   if(token){try{await call("/v5/logout",{});}catch{}}
   token=null;me=null;
