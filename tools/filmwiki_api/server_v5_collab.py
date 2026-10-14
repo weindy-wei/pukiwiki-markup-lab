@@ -17,7 +17,7 @@ from collab_auth import (login,session,logout,require_role,list_active_members,
                          setup_sso,redeem_sso,setup_session_lifecycle,
                          active_sessions,revoke_session,revoke_all_sessions)
 from asset_catalog_v7 import list_assets,download_asset
-from asset_lifecycle_v8 import setup_lifecycle
+from asset_security_v9 import setup_security
 
 ORIGINS={"http://127.0.0.1:8080","http://localhost:8080"}
 HOST="127.0.0.1"
@@ -33,7 +33,7 @@ class CollabServer(ThreadingHTTPServer):
         self.project_id=project_id
         self.asset_root=Path(asset_root) if asset_root is not None else None
         if self.asset_root is not None:
-            setup_lifecycle(self.asset_root,self.auth_db.resolve().parent.parent)
+            setup_security(self.asset_root,self.auth_db.resolve().parent.parent)
         self.sso_hex=None
         if sso_secret_file is not None:
             secret_path=Path(sso_secret_file).resolve(strict=True)
