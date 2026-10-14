@@ -127,7 +127,9 @@ def list_assets(root,identity,project_id):
                             "size","sha256","owner_user_id","created_utc")}
             for r in con.execute("SELECT * FROM assets WHERE project_id=? "
                                  "ORDER BY created_utc DESC,asset_id",(project_id,))
-            if _authorized(r,identity,project_id)]
+            if _authorized(r,identity,project_id)
+            and ("asset_state" not in r.keys() or
+                 (r["asset_state"]=="approved" and r["deleted_at"] is None))]
 
 def download_asset(root,identity,project_id,asset_id):
     if project_id!=PROJECT or type(asset_id) is not str:
@@ -138,8 +140,14 @@ def download_asset(root,identity,project_id,asset_id):
     with closing(_connect(root)) as con:
         row=con.execute("SELECT * FROM assets WHERE asset_id=?",(asset_id,)).fetchone()
         if row is None or not _authorized(row,identity,project_id):return None
+        if "asset_state" in row.keys() and (row["asset_state"]!="approved" or
+                                              row["deleted_at"] is not None):return None
         metadata=dict(row)
-    path=Path(root)/("asset-"+asset_id+".bin")
+    ver=metadata.get("current_version",1)
+    if type(ver) is not int or not 1<=ver<=100000:
+        raise RuntimeError("Invalid active asset version")
+    path=Path(root)/(("asset-"+asset_id+".bin") if ver==1 else
+                      ("asset-"+asset_id+"-v"+str(ver)+".bin"))
     if path.is_symlink() or not path.is_file():raise RuntimeError("Missing asset")
     flags=os.O_RDONLY|os.O_NOFOLLOW
     fd=os.open(path,flags)
