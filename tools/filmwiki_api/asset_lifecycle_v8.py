@@ -66,7 +66,7 @@ def setup_lifecycle(root,data_root):
                 exists=c.execute("SELECT 1 FROM asset_versions WHERE asset_id=? AND version=1",
                                 (record["asset_id"],)).fetchone()
                 if not exists:
-                    c.execute("INSERT INTO asset_versions VALUES(?,?,?,?,?,?,?,?)",
+                    c.execute("INSERT INTO asset_versions(asset_id,version,file_name,sha256,size,media_type,review_state,created_utc) VALUES(?,?,?,?,?,?,?,?)",
                         (record["asset_id"],1,"asset-"+record["asset_id"]+".bin",
                          record["sha256"],record["size"],record["media_type"],
                          "approved",record["created_utc"]))
@@ -161,7 +161,7 @@ def stage_new(root,identity_db,source,project_id,actor_id,filename,mime,visibili
                       "pending_version,deleted_at) VALUES(?,?,?,?,?,?,?,?,?,'pending',1,1,NULL)",
                  (asset_id,project_id,actor_id,filename,mime,visibility,
                   values["sha256"],values["size"],timestamp))
-            c.execute("INSERT INTO asset_versions VALUES(?,?,?,?,?,?,?,?)",
+            c.execute("INSERT INTO asset_versions(asset_id,version,file_name,sha256,size,media_type,review_state,created_utc) VALUES(?,?,?,?,?,?,?,?)",
                      (asset_id,1,values["file_name"],values["sha256"],values["size"],
                       mime,"pending",timestamp))
             _event(c,asset_id,"stage-new",actor_id,{},{"version":1,"state":"pending",
@@ -190,7 +190,7 @@ def stage_revision(root,identity_db,source,asset_id,actor_id,mime):
             version=latest+1
             data=_stage_bytes(root,source,mime,asset_id,version)
             try:
-                c.execute("INSERT INTO asset_versions VALUES(?,?,?,?,?,?,?,?)",
+                c.execute("INSERT INTO asset_versions(asset_id,version,file_name,sha256,size,media_type,review_state,created_utc) VALUES(?,?,?,?,?,?,?,?)",
                           (asset_id,version,data["file_name"],data["sha256"],data["size"],
                            mime,"pending",utc()))
                 c.execute("UPDATE assets SET pending_version=? WHERE asset_id=?",(version,asset_id))
@@ -218,7 +218,14 @@ def review(root,identity_db,asset_id,actor_id,decision):
             v=c.execute("SELECT * FROM asset_versions WHERE asset_id=? AND version=?",
                         (asset_id,version)).fetchone()
             if v is None or v["review_state"]!="pending":raise ValueError("Review state conflict")
-            if decision=="approved":_verify_file(root,v)
+            if actor_id==asset["owner_user_id"]:
+                raise PermissionError("Two-person rule: submitter cannot review own file")
+            if decision=="approved":
+                _verify_file(root,v)
+                if "scan_state" in v.keys():
+                    from asset_security_v9 import scan_is_current
+                    if not scan_is_current(v):
+                        raise PermissionError("Cannot approve without a fresh clean scan for this exact version")
             c.execute("UPDATE asset_versions SET review_state=? WHERE asset_id=? AND version=?",
                       (decision,asset_id,version))
             if decision=="approved":
