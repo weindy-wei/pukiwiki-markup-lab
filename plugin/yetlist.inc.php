@@ -15,6 +15,8 @@ function plugin_yetlist_action()
 
 	// Diff
 	$pages = array_diff(get_existpages(CACHE_DIR, '.ref'), get_existpages());
+	// Step35: cached backlinks may include protected page names.
+	$pages = array_filter($pages, 'is_page_readable');
 	if (empty($pages)) {
 		$retval['body'] = $_err_notexist;
 		return $retval;
@@ -34,6 +36,7 @@ function plugin_yetlist_action()
 		}
 		// Diff
 		$refer = array_diff($refer, preg_grep($refer_regex, $refer));
+		$refer = array_values(array_filter($refer, 'is_page_readable'));
 		if (! empty($refer)) {
 			$empty = FALSE;
 			$refer = array_unique($refer);

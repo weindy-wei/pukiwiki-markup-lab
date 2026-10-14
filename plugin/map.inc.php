@@ -33,6 +33,8 @@ function plugin_map_action()
 
 	// Get pages
 	$pages = array_values(array_diff(get_existpages(), array($whatsnew)));
+	// Step35: never construct relationship nodes for unreadable pages.
+	$pages = array_values(array_filter($pages, 'is_page_readable'));
 	if (! PLUGIN_MAP_SHOW_HIDDEN)
 		$pages = array_diff($pages, preg_grep('/' . $non_list . '/', $pages));
 	if (empty($pages)) {
