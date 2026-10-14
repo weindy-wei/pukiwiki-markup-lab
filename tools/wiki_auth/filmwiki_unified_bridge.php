@@ -10,6 +10,14 @@ if (!defined('FILMWIKI_IDENTITY_SQLITE')) {
 if (!defined('FILMWIKI_UNIFIED_PROJECT')) {
     define('FILMWIKI_UNIFIED_PROJECT', 'demo-editor');
 }
+function filmwiki_unified_session_start() {
+    if (session_status() === PHP_SESSION_ACTIVE) return;
+    ini_set('session.use_strict_mode','1');
+    ini_set('session.cookie_httponly','1');
+    ini_set('session.cookie_samesite','Strict');
+    ini_set('session.use_only_cookies','1');
+    session_start();
+}
 function filmwiki_unified_is_managed_page($page) {
     return is_string($page) &&
         ($page === 'FilmWiki/Projects/demo-editor' ||
@@ -58,7 +66,7 @@ function filmwiki_unified_refresh($page) {
     global $auth_user, $auth_user_fullname, $auth_user_groups;
     $auth_user_groups = array_values(array_diff((array)$auth_user_groups,
                              array('fw-demo-editor-read','fw-demo-editor-edit')));
-    if (session_status() !== PHP_SESSION_ACTIVE) session_start();
+    filmwiki_unified_session_start();
     $uid = isset($_SESSION['filmwiki_unified_uid']) ? $_SESSION['filmwiki_unified_uid'] : null;
     $actor = filmwiki_unified_actor($uid);
     $expected=isset($_SESSION['filmwiki_unified_guard']) ? $_SESSION['filmwiki_unified_guard'] : '';
@@ -90,7 +98,7 @@ function filmwiki_unified_edit_csrf_ok() {
     if (!isset($_SERVER['REQUEST_METHOD']) || $_SERVER['REQUEST_METHOD'] !== 'POST') return true;
     $origin=isset($_SERVER['HTTP_ORIGIN']) ? $_SERVER['HTTP_ORIGIN'] : '';
     if ($origin !== 'http://127.0.0.1:8080' && $origin !== 'http://localhost:8080') return false;
-    if (session_status() !== PHP_SESSION_ACTIVE) session_start();
+    filmwiki_unified_session_start();
     $expected=isset($_SESSION['filmwiki_csrf']) ? $_SESSION['filmwiki_csrf'] : '';
     $supplied=isset($_POST['filmwiki_csrf']) ? $_POST['filmwiki_csrf'] : '';
     return is_string($expected) && strlen($expected)===64 &&
