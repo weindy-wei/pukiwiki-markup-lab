@@ -125,8 +125,6 @@ def _authorized(record,identity,project_id):
         return record["owner_user_id"]==identity["user_id"]
     return bool(roles.intersection({"viewer","editor","reviewer","publisher","owner"}))
 
-def list_assets(root,identity,project_id):
-    if project_id!=PROJECT:return []
 def _approved_version(con,r):
     cols={col["name"] for col in con.execute("PRAGMA table_info(asset_versions)")}
     if "scan_state" not in cols:return True  # unmigrated test fixture only
@@ -139,6 +137,8 @@ def _approved_version(con,r):
     return ver["scan_state"]=="legacy_unverified" or (
         ver["scan_state"]=="clean" and ver["scan_digest"]==ver["sha256"])
 
+def list_assets(root,identity,project_id):
+    if project_id!=PROJECT:return []
     with closing(_connect(root)) as con:
         return [{
             k:r[k] for k in ("asset_id","original_filename","media_type","visibility",
