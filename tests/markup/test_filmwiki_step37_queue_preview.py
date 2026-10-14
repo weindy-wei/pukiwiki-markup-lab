@@ -17,7 +17,7 @@ class QueueTests(unittest.TestCase):
   self.root=Path(self.t.name);(self.root/"private").mkdir()
   staging=self.root/"staging/synthetic-assets";staging.mkdir(parents=True)
   self.src=staging/"snippet.txt"
-  self.src.write_text('<script>alert("x")</script>\nFilmWiki sample\n',encoding="utf8")
+  self.src.write_text('FilmWiki notes with literal <img src=x onerror=alert(1)> in a text cell.\n',encoding="utf8")
   self.db=self.root/"private/users.sqlite"
   create_store(self.db,self.root)
   self.owner=create_user(self.db,"owner","Owner2026Strong!")
@@ -113,8 +113,8 @@ class QueueTests(unittest.TestCase):
   self.pass_scan(aid)
   result=inert_text_preview(self.assets,self.r,aid)
   self.assertTrue(result["available"])
-  self.assertIn("&lt;script&gt;",result["text"])
-  self.assertNotIn("<script>",result["text"])
+  self.assertIn("&lt;img",result["text"])
+  self.assertNotIn("<img",result["text"])
   self.assertEqual(result["preview_format"],"escaped_plain_text")
  def test_09_revoked_requester_job_blocked_not_cleared(self):
   aid=self.stage();enqueue(self.assets,self.db,aid,self.owner["user_id"])
