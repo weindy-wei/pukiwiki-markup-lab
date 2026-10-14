@@ -42,7 +42,7 @@ class NativeWikiBridgeInstallerTests(unittest.TestCase):
     def test_native_edit_form_has_csrf_hidden_field(self):
         changed=installer.plan_edit_html(self.html_template())
         self.assertIn("filmwiki_unified_session_start()",changed)
-        self.assertIn('name=\\"filmwiki_csrf\\"',changed)
+        self.assertIn('name="filmwiki_csrf"',changed)
         self.assertIn('  $filmwiki_unified_csrf_input\n',changed)
         self.assertEqual(installer.plan_edit_html(changed),changed)
     def test_refuse_divergent_pukiwiki_core(self):
