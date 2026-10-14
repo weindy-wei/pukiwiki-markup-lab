@@ -41,7 +41,22 @@
           <label for="edit-value">新值（文字）</label><textarea id="edit-value" rows="4" maxlength="10000"></textarea>
           <label for="edit-reason">修改原因（必填）</label><input id="edit-reason" type="text" placeholder="例如：根据导演审核修正镜头动作" minlength="3" maxlength="200">
           <button type="submit" id="save" class="primary">按当前版本提交修改</button>
+          <div class="batch-panel">
+            <strong>批量修改清单（最多 20 条，每条记录一次）</strong>
+            <p>先在各记录中填写待修改的文字，点击加入清单；最后统一提交，任何一项冲突都会整批回滚。</p>
+            <button type="button" id="batch-add">加入批量清单</button>
+            <button type="button" id="batch-submit" class="primary" disabled>原子提交清单</button>
+            <button type="button" id="batch-clear" disabled>清空清单</button>
+            <div id="batch-summary" aria-live="polite"></div>
+          </div>
         </form>
+        <section id="parent-tools" class="parent-panel" hidden>
+          <h3>父镜头归属（按记录 ID）</h3>
+          <p id="parent-explanation"></p>
+          <label for="parent-candidate">选择明确的候选记录</label>
+          <select id="parent-candidate"></select>
+          <button type="button" id="parent-submit">提交关系修订</button>
+        </section>
       </section>
       <section class="panel history">
         <h2>版本与审计</h2>
