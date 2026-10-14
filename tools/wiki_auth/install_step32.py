@@ -79,7 +79,7 @@ def plan_edit_html(old):
     injection=(
         "\t$filmwiki_unified_csrf_input = '';\n"
         "\tif (function_exists('filmwiki_unified_is_managed_page') && filmwiki_unified_is_managed_page($page)) {\n"
-        "\t\tif (session_status() !== PHP_SESSION_ACTIVE) session_start();\n"
+        "\t\tfilmwiki_unified_session_start();\n"
         "\t\tif (!isset($_SESSION['filmwiki_csrf']) || !is_string($_SESSION['filmwiki_csrf']) || strlen($_SESSION['filmwiki_csrf'])!==64)\n"
         "\t\t\t$_SESSION['filmwiki_csrf']=bin2hex(random_bytes(32));\n"
         "\t\t$filmwiki_unified_csrf_input='<input type=\"hidden\" name=\"filmwiki_csrf\" value=\"'.htmlsc($_SESSION['filmwiki_csrf']).'\" />';\n"
