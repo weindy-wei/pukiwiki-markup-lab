@@ -109,13 +109,12 @@ class Step29Tests(unittest.TestCase):
         self.assertEqual(hashlib.sha256(self.source.read_bytes()).hexdigest(),self.source_sha)
 
     def test_unauthorized_reviewer_cannot_approve(self):
-        rid=str(uuid.uuid4())
-        prepare_release(self.working,self.release_root,PROJECT,rid)
         with sqlite3.connect(self.working) as c:
             c.execute("DELETE FROM workflow_role_grants WHERE role='reviewer'")
-        # Role proof is pinned in the prepared release, not mutable working copy.
-        approval=approve_release(self.release_root,rid)
-        self.assertEqual(approval["reviewer"],ACTOR)
+        rid=str(uuid.uuid4())
+        prepare_release(self.working,self.release_root,PROJECT,rid)
+        with self.assertRaises(PermissionError):
+            approve_release(self.release_root,rid)
         self.assertFalse((self.release_root/"published"/rid).exists())
 
     def test_tampered_prepared_copy_rejected(self):
