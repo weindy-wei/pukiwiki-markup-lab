@@ -290,6 +290,42 @@ def activate(root,release_id):
     return _with_maintenance(root,execute)
 
 
+def recover(root,transaction):
+    """Restore pre-cutover state if the controller crashed before confirmation.
+
+    Only transactions still marked PREPARED are eligible. This is a manual,
+    local root recovery command; no guessing based on HTTP success.
+    """
+    root,home=_base(root)
+    if type(transaction) is not str or not UUID.fullmatch(transaction) or \
+       str(uuid.UUID(transaction))!=transaction:
+        raise ValueError("Invalid transaction")
+    txn=home/"transactions"/transaction
+    if txn.is_symlink() or not txn.is_dir():raise ValueError("Unknown transaction")
+    saved=json.loads((txn/"transaction.json").read_text())
+    if saved.get("transaction")!=transaction or saved.get("state")!="prepared":
+        raise ValueError("Only interrupted transactions can be recovered")
+    previous=(txn/"registry.before.json").read_bytes()
+    if hashlib.sha256(previous).hexdigest()!=saved["registry_before_sha256"]:
+        raise RuntimeError("Rollback journal was modified")
+    current_sha=_sha(root/"private/projects.json")
+    if current_sha not in (saved["registry_before_sha256"],
+                          saved["registry_after_sha256"]):
+        raise RuntimeError("Unknown registry state; manual inspection required")
+    idx=txn/"index.before.sqlite"
+    prior=idx.read_bytes() if saved["prior_index_existed"] else None
+    def execute():
+        _command("/usr/bin/systemctl","stop",SERVICE)
+        _restore(root,previous,prior)
+        _command("/usr/bin/systemctl","start",SERVICE)
+        _verify_live(root,saved["old_projects"])
+        saved["state"]="recovered_after_interruption"
+        saved["recovered_utc"]=datetime.now(timezone.utc).isoformat()
+        _json(txn/"transaction.json",saved)
+        return saved
+    return _with_maintenance(root,execute)
+
+
 def rollback(root,transaction):
     root,home=_base(root)
     if type(transaction) is not str or not UUID.fullmatch(transaction) or \
