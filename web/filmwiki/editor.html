@@ -17,9 +17,9 @@
     <p>独立本地编辑实验台，只修改合成工作副本。正式导入快照与原只读 API 不受影响。</p>
   </div>
   <section class="panel auth" id="auth-panel">
-    <label for="auth-token">编辑专用令牌</label>
-    <div class="auth-line"><input id="auth-token" type="password" placeholder="粘贴单独的编辑令牌" autocomplete="off"><button id="connect" type="button" class="primary">连接编辑副本</button></div>
-    <small>令牌仅存在于本次浏览器页面内存中；刷新后需重新连接。</small>
+<strong>本机编辑直连</strong>
+    <p>页面会自动连接 127.0.0.1 的编辑副本，无需令牌。仅限 WEINDY-PC 本机使用。</p>
+    <button id="connect" type="button" class="primary">重新连接本机编辑副本</button>
   </section>
   <section id="workspace" hidden>
     <div class="stats"><div><span>项目</span><strong id="project-title">—</strong></div><div><span>表数量</span><strong id="sheet-total">—</strong></div><div><span>当前记录版本</span><strong id="record-version">—</strong></div><div><span>当前状态</span><strong>本机私有副本</strong></div></div>
