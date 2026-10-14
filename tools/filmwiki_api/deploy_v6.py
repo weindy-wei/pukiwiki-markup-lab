@@ -209,7 +209,8 @@ def _verify_live(root,expected_ids):
             row=get(f"/v2/projects/{pid}/records?sheet={si}&limit=1")
             if row["project_id"]!=pid:raise RuntimeError("Wrong page project")
     if ALIAS in expected_ids:
-        page=get(f"/v2/projects/{ALIAS}/records?sheet=6&q=合成街景&limit=10")
+        from urllib.parse import urlencode
+        page=get(f"/v2/projects/{ALIAS}/records?"+urlencode({"sheet":6,"q":"合成街景","limit":10}))
         if len(page["records"])==0:raise RuntimeError("New project's FTS failed")
         detail=get(f"/v2/projects/{ALIAS}/record?sheet=6&id=src_demo_6009")
         parent=(detail["record"].get("parent_link") or {}).get("parent_record_id")
