@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; connect-src http://127.0.0.1:8094; form-action 'none'; base-uri 'none'; object-src 'none'">
+<title>FilmWiki · 编辑与审计实验台</title>
+<link rel="stylesheet" href="./editor.css">
+</head>
+<body>
+<header class="top"><strong>FILMWIKI <span>EDITOR LAB</span></strong><a href="./live.html">← 返回只读检索</a></header>
+<main>
+  <div class="intro">
+    <span class="eyebrow">STEP 28 · VERSIONED WRITES</span>
+    <h1>记录编辑、版本控制与审计日志</h1>
+    <p>独立本地编辑实验台，只修改合成工作副本。正式导入快照与原只读 API 不受影响。</p>
+  </div>
+  <section class="panel auth" id="auth-panel">
+    <label for="auth-token">编辑专用令牌</label>
+    <div class="auth-line"><input id="auth-token" type="password" placeholder="粘贴单独的编辑令牌" autocomplete="off"><button id="connect" type="button" class="primary">连接编辑副本</button></div>
+    <small>令牌仅存在于本次浏览器页面内存中；刷新后需重新连接。</small>
+  </section>
+  <section id="workspace" hidden>
+    <div class="stats"><div><span>项目</span><strong id="project-title">—</strong></div><div><span>表数量</span><strong id="sheet-total">—</strong></div><div><span>当前记录版本</span><strong id="record-version">—</strong></div><div><span>当前状态</span><strong>本机私有副本</strong></div></div>
+    <div class="columns">
+      <section class="panel">
+        <h2>工作表与记录</h2>
+        <label for="sheet-select">选择工作表</label><select id="sheet-select"></select>
+        <div class="search-line"><input type="search" id="search-term" placeholder="查找镜头或文本" maxlength="80"><button type="button" id="search-button">查询</button></div>
+        <div id="record-list" class="record-list" role="list"></div>
+        <div class="pager"><button id="prev-page" type="button" disabled>上一页</button><span id="page-state">第 1 页</span><button id="next-page" type="button" disabled>下一页</button></div>
+      </section>
+      <section class="panel">
+        <h2>记录详情</h2>
+        <p class="record-id" id="record-id">选择左侧记录</p>
+        <div id="field-list"></div>
+        <form id="edit-form" class="edit-form" autocomplete="off">
+          <h3>提交新修订</h3>
+          <label for="edit-field">允许编辑的字段</label><select id="edit-field"></select>
+          <label for="edit-value">新值（文字）</label><textarea id="edit-value" rows="4" maxlength="10000"></textarea>
+          <label for="edit-reason">修改原因（必填）</label><input id="edit-reason" type="text" placeholder="例如：根据导演审核修正镜头动作" minlength="3" maxlength="200">
+          <button type="submit" id="save" class="primary">按当前版本提交修改</button>
+        </form>
+      </section>
+      <section class="panel history">
+        <h2>版本与审计</h2>
+        <p>每次提交都会追加独立事件，保存修改前后值、时间、原因及哈希链。</p>
+        <div id="history-list"></div>
+      </section>
+    </div>
+  </section>
+  <p id="notice" role="status" aria-live="polite"></p>
+  <footer>FILMWIKI / ISOLATED EDIT WORKSPACE · LOCALHOST ONLY · NO SOURCE WRITES</footer>
+</main>
+<script type="module" src="./editor.js"></script>
+</body>
+</html>
