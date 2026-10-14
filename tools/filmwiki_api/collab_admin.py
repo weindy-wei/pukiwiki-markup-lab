@@ -3,7 +3,7 @@
 import argparse,getpass,json
 from pathlib import Path
 import sqlite3
-from collab_auth import create_store,create_user,grant,disable,list_active_members
+from collab_auth import create_store,create_user,grant,revoke,reset_password,disable,list_active_members
 from editor_store import get_meta
 
 ROOT=Path("/home/administrator/filmwiki-data")
@@ -17,6 +17,8 @@ def main():
     actions.add_parser("init")
     u=actions.add_parser("add-user");u.add_argument("username")
     g=actions.add_parser("grant");g.add_argument("username");g.add_argument("role",choices=("viewer","editor","reviewer","publisher","owner"))
+    rev=actions.add_parser("revoke");rev.add_argument("username");rev.add_argument("role",choices=("viewer","editor","reviewer","publisher","owner"))
+    reset=actions.add_parser("reset-password");reset.add_argument("username")
     dis=actions.add_parser("disable");dis.add_argument("username")
     actions.add_parser("members")
     opts=parser.parse_args()
@@ -35,6 +37,23 @@ def main():
                 con.execute("INSERT OR IGNORE INTO workflow_role_grants "
                             "(project_id,actor,role) VALUES (?,?,?)",(PROJECT,uid,"editor"))
         print(json.dumps({"username":opts.username,"role":opts.role,"project":PROJECT}))
+    elif opts.action=="revoke":
+        uid=revoke(AUTH,PROJECT,opts.username,opts.role)
+        if opts.role in ("editor","owner"):
+            current=list_active_members(AUTH,PROJECT)
+            remaining={m["role"] for m in current if m["user_id"]==uid}
+            if not remaining.intersection({"editor","owner"}):
+                with sqlite3.connect(EDITOR) as con:
+                    con.execute("DELETE FROM workflow_role_grants "
+                                "WHERE project_id=? AND actor=? AND role='editor'",
+                                (PROJECT,uid))
+        print(json.dumps({"username":opts.username,"revoked":opts.role,"sessions_revoked":True}))
+    elif opts.action=="reset-password":
+        a=getpass.getpass("New password (12-128 chars): ")
+        b=getpass.getpass("Confirm password: ")
+        if a!=b:parser.error("Passwords differ")
+        reset_password(AUTH,opts.username,a)
+        print(json.dumps({"username":opts.username,"password_reset":True,"sessions_revoked":True}))
     elif opts.action=="disable":
         uid=disable(AUTH,opts.username)
         with sqlite3.connect(EDITOR) as con:
