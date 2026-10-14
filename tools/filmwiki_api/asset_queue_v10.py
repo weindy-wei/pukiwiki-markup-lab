@@ -189,7 +189,14 @@ def decide(root,identity_db,identity,asset_id,decision):
 def inert_text_preview(root,identity,asset_id):
     if not valid_id(asset_id):return None
     roles={r["role"] for r in identity["memberships"] if r["project_id"]==PROJECT}
-    if not roles:return None
+    if not roles or not (roles & {"owner","reviewer","publisher"}):
+        # A submitter may preview their own item only after checking ownership
+        # below; ordinary viewers/editors must never probe private pending IDs.
+        with closing(_connect(root)) as probe:
+            check=probe.execute("SELECT owner_user_id FROM assets WHERE asset_id=? AND project_id=?",
+                                (asset_id,PROJECT)).fetchone()
+            if not check or check["owner_user_id"]!=identity["user_id"]:
+                return None
     with closing(_connect(root)) as c:
         a=c.execute("SELECT * FROM assets WHERE asset_id=? AND project_id=?",
                     (asset_id,PROJECT)).fetchone()
