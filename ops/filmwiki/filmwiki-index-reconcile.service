@@ -12,7 +12,7 @@ Environment=PYTHONDONTWRITEBYTECODE=1
 ExecStart=/usr/bin/python3 /home/administrator/filmwiki-data/services/index_reconcile_supervisor.py
 TimeoutStartSec=15min
 UMask=0077
-NoNewPrivileges=yes
+# Dropping from root to administrator uses setuid/setgid; keep those capabilities.
 PrivateTmp=yes
 PrivateDevices=yes
 ProtectSystem=strict
