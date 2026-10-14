@@ -1,0 +1,12 @@
+[Unit]
+Description=FilmWiki Step37 scan queue scheduler, once per minute
+
+[Timer]
+OnBootSec=1min
+OnUnitInactiveSec=1min
+AccuracySec=10s
+Persistent=true
+Unit=filmwiki-asset-scan-queue.service
+
+[Install]
+WantedBy=timers.target
