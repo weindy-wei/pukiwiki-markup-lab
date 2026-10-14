@@ -80,6 +80,16 @@ function plugin_fwunified_action() {
     }
     $actor=isset($_SESSION['filmwiki_unified_uid']) ?
            filmwiki_unified_actor($_SESSION['filmwiki_unified_uid']) : null;
+    // Step34: login page must not display a stale actor after logout-all.
+    if ($actor) {
+        $current=isset($_SESSION['filmwiki_unified_guard']) ? $_SESSION['filmwiki_unified_guard'] : '';
+        if (!is_string($current) || !hash_equals($actor['session_guard'],$current)) {
+            $actor=null;
+            unset($_SESSION['filmwiki_unified_uid'],$_SESSION['filmwiki_unified_guard'],
+                  $_SESSION['filmwiki_unified_username'],$_SESSION['authenticated_user'],
+                  $_SESSION['authenticated_user_fullname']);
+        }
+    }
     $formUrl=htmlsc(get_base_uri().'?plugin=fwunified');
     $csrfHTML=htmlsc($csrf);
     $body='<div class="fw-unified-login"><h2>FilmWiki / PukiWiki 统一身份实验台</h2>';

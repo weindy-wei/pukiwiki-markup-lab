@@ -38,7 +38,22 @@
   </section>
   <section class="card"><h2>逐版本审计</h2><div id="history"></div></section>
  </div>
+ <div class="cols" style="margin-top:16px;grid-template-columns:1fr 1fr">
+  <section class="card">
+   <h2>已登录设备 / 会话</h2>
+   <p class="hint">撤销任一会话会令该设备的 API 令牌失效；“退出所有设备”也会令 Wiki 页面会话失效。</p>
+   <button type="button" id="refresh-sessions">刷新会话</button>
+   <button type="button" id="logout-all">退出所有设备</button>
+   <div id="session-list" class="items"></div>
+  </section>
+  <section class="card">
+   <h2>受控项目附件</h2>
+   <p class="hint">仅显示有权限读取的附件；文件下载时会重新校验当前成员权限和 SHA-256。</p>
+   <button type="button" id="refresh-assets">刷新附件</button>
+   <div id="asset-list" class="items"></div>
+  </section>
+ </div>
 </section>
 <p id="feedback" role="status" aria-live="polite"></p>
-<footer>FILMWIKI STEP31 · PRIVATE SYNTHETIC PROJECT · USER ATTRIBUTION + VERSION CONTROL</footer>
+<footer>FILMWIKI STEP34 · PRIVATE SYNTHETIC PROJECT · USER ATTRIBUTION + VERSION CONTROL</footer>
 </main><script type="module" src="./collab.js"></script></body></html>

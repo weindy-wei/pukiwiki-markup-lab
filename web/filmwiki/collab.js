@@ -132,6 +132,7 @@ async function completeLogin(auth){
  busy=false;
  await loadPage();
  $("login-panel").hidden=true;$("workspace").hidden=false;
+ void showSessions();void showAssets();
 }
 $("login-form").addEventListener("submit",async e=>{
  e.preventDefault();if(busy)return;busy=true;
@@ -182,6 +183,74 @@ $("sso-button").addEventListener("click",()=>tryNativeSSO(false));
 // On an already signed-in Wiki tab, enter without retyping credentials.
 // Failure is quiet, preserving the original password login flow.
 void tryNativeSSO(true);
+
+async function showSessions(){
+ const out=$("session-list");out.replaceChildren();
+ if(!token)return;
+ try{
+  const data=await call("/v6/sessions");
+  for(const entry of data.sessions){
+   const div=text("div",undefined,"field");
+   div.append(text("small",(entry.session_id===data.current_session_id?"当前设备":"其他设备")+" · "+entry.source));
+   const content=text("div",new Date(entry.created_at*1000).toLocaleString());
+   if(entry.session_id!==data.current_session_id){
+    const btn=text("button","撤销");
+    btn.addEventListener("click",async()=>{
+     btn.disabled=true;
+     try{
+      await call("/v6/sessions/revoke",{session_id:entry.session_id});
+      await showSessions();feedback("会话已撤销","success");
+     }catch(err){feedback(err.message,"error");btn.disabled=false;}
+    });
+    content.append(btn);
+   }
+   div.append(content);out.append(div);
+  }
+  if(!data.sessions.length)out.append(text("p","没有有效会话","empty"));
+ }catch(err){out.append(text("p","会话列表无法读取","empty"));}
+}
+async function showAssets(){
+ const out=$("asset-list");out.replaceChildren();
+ if(!token)return;
+ try{
+  const data=await call("/v6/assets");
+  for(const entry of data.assets){
+   const btn=text("button",entry.original_filename+" · "+entry.visibility);
+   btn.addEventListener("click",async()=>{
+    btn.disabled=true;
+    try{
+     const response=await globalThis.fetch(API+"/v6/assets/"+entry.asset_id+"/content",{
+      method:"GET",mode:"cors",cache:"no-store",credentials:"omit",
+      headers:{Authorization:"Bearer "+token}});
+     if(!response.ok)throw Error("没有附件读取权限："+response.status);
+     const blob=await response.blob();
+     const link=document.createElement("a");
+     const url=URL.createObjectURL(blob);
+     try{
+      link.href=url;link.download="asset-"+entry.asset_id;
+      link.hidden=true;document.body.append(link);link.click();link.remove();
+     }finally{URL.revokeObjectURL(url);}
+     feedback("授权附件已获取","success");
+    }catch(err){feedback(err.message,"error");}
+    finally{btn.disabled=false;}
+   });
+   out.append(btn);
+  }
+  if(!data.assets.length)out.append(text("p","没有可读取的附件","empty"));
+ }catch(err){out.append(text("p","附件列表无法读取","empty"));}
+}
+$("refresh-sessions").addEventListener("click",()=>showSessions());
+$("refresh-assets").addEventListener("click",()=>showAssets());
+$("logout-all").addEventListener("click",async()=>{
+ if(!token)return;
+ try{
+  await call("/v6/sessions/revoke-all",{});
+  token=null;me=null;manifest=null;current=null;
+  $("workspace").hidden=true;$("login-panel").hidden=false;
+  $("session-list").replaceChildren();$("asset-list").replaceChildren();
+  feedback("所有协作会话已注销，旧 Wiki 会话将于下一次请求失效。","success");
+ }catch(err){feedback(err.message,"error");}
+});
 $("logout").addEventListener("click",async()=>{
  try{if(token)await call("/v5/logout",{});}
  catch{}

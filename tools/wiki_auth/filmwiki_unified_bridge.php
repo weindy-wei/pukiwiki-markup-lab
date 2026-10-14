@@ -55,7 +55,7 @@ function filmwiki_unified_actor($uid) {
     $db = filmwiki_unified_store();
     if ($db === null) return null;
     try {
-        $stmt = $db->prepare('SELECT user_id,username,active,password_hash FROM users WHERE user_id=:uid');
+        $stmt = $db->prepare('SELECT user_id,username,active,password_hash,session_epoch FROM users WHERE user_id=:uid');
         $stmt->bindValue(':uid', $uid, SQLITE3_TEXT);
         $u = $stmt->execute()->fetchArray(SQLITE3_ASSOC);
         if (!$u || (int)$u['active'] !== 1) return null;
@@ -68,7 +68,7 @@ function filmwiki_unified_actor($uid) {
         sort($roles, SORT_STRING);
         // Bind PHP native sessions to both password revision and exact ACL.
         // Role or password changes revoke existing Wiki sessions on next read.
-        $guard = hash('sha256', $u['user_id']."\n".$u['password_hash']."\n".implode(",",$roles));
+        $guard = hash('sha256', $u['user_id']."\n".$u['password_hash']."\n".implode(",",$roles)."\\n".(string)$u['session_epoch']);
         return array('user_id'=>$u['user_id'], 'username'=>$u['username'],
                      'roles'=>$roles, 'session_guard'=>$guard);
     } catch (Throwable $e) {

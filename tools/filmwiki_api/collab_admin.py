@@ -3,7 +3,8 @@
 import argparse,getpass,json
 from pathlib import Path
 import sqlite3
-from collab_auth import create_store,create_user,grant,revoke,reset_password,disable,list_active_members
+from collab_auth import (create_store,create_user,grant,revoke,reset_password,disable,
+                         list_active_members,setup_session_lifecycle,active_sessions,revoke_all_sessions)
 from editor_store import get_meta
 
 ROOT=Path("/home/administrator/filmwiki-data")
@@ -20,8 +21,11 @@ def main():
     rev=actions.add_parser("revoke");rev.add_argument("username");rev.add_argument("role",choices=("viewer","editor","reviewer","publisher","owner"))
     reset=actions.add_parser("reset-password");reset.add_argument("username")
     dis=actions.add_parser("disable");dis.add_argument("username")
+    ses=actions.add_parser("sessions");ses.add_argument("username")
+    revoke_all=actions.add_parser("revoke-all-sessions");revoke_all.add_argument("username")
     actions.add_parser("members")
     opts=parser.parse_args()
+    if opts.action!="init":setup_session_lifecycle(AUTH)
     if opts.action=="init":
         print(json.dumps({"db":create_store(AUTH,ROOT),"secret_exported":False}))
     elif opts.action=="add-user":
@@ -59,6 +63,15 @@ def main():
         with sqlite3.connect(EDITOR) as con:
             con.execute("DELETE FROM workflow_role_grants WHERE actor=?",(uid,))
         print(json.dumps({"username":opts.username,"disabled":True}))
+    elif opts.action in ("sessions","revoke-all-sessions"):
+        with sqlite3.connect(AUTH.resolve().as_uri()+"?mode=ro",uri=True) as con:
+            row=con.execute("SELECT user_id FROM users WHERE username=?",(opts.username,)).fetchone()
+        if not row:raise SystemExit("Unknown username")
+        if opts.action=="sessions":
+            print(json.dumps({"username":opts.username,"sessions":active_sessions(AUTH,row[0])},
+                             ensure_ascii=False,indent=2))
+        else:
+            print(json.dumps({"username":opts.username,**revoke_all_sessions(AUTH,row[0])}))
     else:
         print(json.dumps({"project":PROJECT,"members":list_active_members(AUTH,PROJECT)},
                          ensure_ascii=False,indent=2))

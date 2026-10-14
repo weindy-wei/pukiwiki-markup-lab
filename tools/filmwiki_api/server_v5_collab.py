@@ -13,7 +13,10 @@ from editor_store import (manifest,list_records,record,history,change,
                           verify_history,get_meta,InvalidEdit,
                           VersionConflict,DuplicateRequest,MissingRecord)
 from workflow_v5 import batch_change,relation
-from collab_auth import login,session,logout,require_role,list_active_members,setup_sso,redeem_sso
+from collab_auth import (login,session,logout,require_role,list_active_members,
+                         setup_sso,redeem_sso,setup_session_lifecycle,
+                         active_sessions,revoke_session,revoke_all_sessions)
+from asset_catalog_v7 import setup_assets,list_assets,download_asset
 
 ORIGINS={"http://127.0.0.1:8080","http://localhost:8080"}
 HOST="127.0.0.1"
@@ -22,11 +25,14 @@ MAX_BODY=16384
 class CollabServer(ThreadingHTTPServer):
     daemon_threads=True
     allow_reuse_address=True
-    def __init__(self,address,auth_db,editor_db,project_id,sso_secret_file=None):
+    def __init__(self,address,auth_db,editor_db,project_id,sso_secret_file=None,asset_root=None):
         if address[0]!=HOST:raise ValueError("Collaboration pilot must be loopback-only")
         self.auth_db=Path(auth_db)
         self.editor_db=Path(editor_db)
         self.project_id=project_id
+        self.asset_root=Path(asset_root) if asset_root is not None else None
+        if self.asset_root is not None:
+            setup_assets(self.asset_root,self.auth_db.resolve().parent.parent)
         self.sso_hex=None
         if sso_secret_file is not None:
             secret_path=Path(sso_secret_file).resolve(strict=True)
@@ -35,6 +41,7 @@ class CollabServer(ThreadingHTTPServer):
             self.sso_hex=secret_path.read_text(encoding="ascii").strip()
             if not re.fullmatch("[a-f0-9]{64}",self.sso_hex):
                 raise ValueError("Invalid SSO secret")
+        setup_session_lifecycle(auth_db)
         setup_sso(auth_db)
         super().__init__(address,Handler)
 
@@ -97,11 +104,42 @@ class Handler(ResponseHandler):
         user=self._identity(origin)
         if user is None:return
         try:
+            u=urlsplit(self.path)
+            if u.path=="/v6/sessions":
+                if u.query:raise InvalidEdit("Query not allowed")
+                return self.respond(200,{"sessions":active_sessions(self.server.auth_db,user["user_id"]),
+                    "current_session_id":user["session_id"]},origin)
             if urlsplit(self.path).path=="/v5/me":
                 if urlsplit(self.path).query:raise InvalidEdit("No query expected")
                 return self.respond(200,{"user_id":user["user_id"],
                    "username":user["username"],"memberships":user["memberships"]},origin)
             require_role(user,self.server.project_id,"read")
+            if u.path=="/v6/assets":
+                if u.query:raise InvalidEdit("Query not allowed")
+                if self.server.asset_root is None:
+                    return self.respond(503,{"error":"assets_disabled"},origin)
+                return self.respond(200,{"assets":list_assets(self.server.asset_root,user,
+                     self.server.project_id)},origin)
+            match=re.fullmatch(r"/v6/assets/([0-9a-f-]{36})/content",u.path)
+            if match:
+                if u.query:raise InvalidEdit("Query not allowed")
+                if self.server.asset_root is None:
+                    return self.respond(503,{"error":"assets_disabled"},origin)
+                payload=download_asset(self.server.asset_root,user,self.server.project_id,
+                                       match.group(1))
+                if payload is None:
+                    return self.respond(404,{"error":"asset_not_found"},origin)
+                self.send_response(200)
+                self.send_header("Content-Type","application/octet-stream")
+                self.send_header("Content-Disposition",'attachment; filename="'+payload["filename"]+'"')
+                self.send_header("Content-Length",str(len(payload["content"])))
+                self.send_header("Cache-Control","no-store, private")
+                self.send_header("X-Content-Type-Options","nosniff")
+                self.send_header("Access-Control-Allow-Origin",origin)
+                self.send_header("Vary","Origin")
+                self.end_headers()
+                self.wfile.write(payload["content"])
+                return
             if urlsplit(self.path).path=="/v5/members":
                 if urlsplit(self.path).query:raise InvalidEdit("Unexpected query")
                 return self.respond(200,{"project_id":self.server.project_id,
@@ -150,7 +188,8 @@ class Handler(ResponseHandler):
         if origin is None:return
         path=urlsplit(self.path)
         if path.query:return self.respond(400,{"error":"invalid_path"},origin)
-        if path.path not in ("/v5/login","/v5/sso","/v5/logout","/v5/edit","/v5/batch"):
+        if path.path not in ("/v5/login","/v5/sso","/v5/logout","/v5/edit","/v5/batch",
+                             "/v6/sessions/revoke","/v6/sessions/revoke-all"):
             return self.respond(404,{"error":"route_not_found"},origin)
         try:body=self._body()
         except (ValueError,TypeError,json.JSONDecodeError):
@@ -173,6 +212,16 @@ class Handler(ResponseHandler):
             return self.respond(200,{"format":"filmwiki-session","version":1,**result},origin)
         user=self._identity(origin)
         if user is None:return
+        if path.path=="/v6/sessions/revoke-all":
+            if body:return self.respond(400,{"error":"invalid_body"},origin)
+            status=revoke_all_sessions(self.server.auth_db,user["user_id"])
+            return self.respond(200,{"revoked_all":True,**status},origin)
+        if path.path=="/v6/sessions/revoke":
+            if set(body)!={"session_id"}:
+                return self.respond(400,{"error":"invalid_body"},origin)
+            try:revoked=revoke_session(self.server.auth_db,user["user_id"],body["session_id"])
+            except ValueError:return self.respond(400,{"error":"invalid_session"},origin)
+            return self.respond(200,{"revoked":revoked},origin)
         if path.path=="/v5/logout":
             if body:return self.respond(400,{"error":"invalid_body"},origin)
             logout(self.server.auth_db,self.headers.get("Authorization","")[7:])
@@ -214,6 +263,7 @@ def main():
     p.add_argument("--project-id",required=True)
     p.add_argument("--port",default=8098,type=int)
     p.add_argument("--sso-secret-file",type=Path)
+    p.add_argument("--asset-root",type=Path)
     a=p.parse_args()
     root=a.data_root.resolve(strict=True)
     for x in (a.auth_db,a.editor_db):
@@ -223,7 +273,7 @@ def main():
     if get_meta(a.editor_db)["project_id"]!=a.project_id:
         p.error("Editor project ID mismatch")
     verify_history(a.editor_db)
-    with CollabServer((HOST,a.port),a.auth_db,a.editor_db,a.project_id,a.sso_secret_file) as app:
+    with CollabServer((HOST,a.port),a.auth_db,a.editor_db,a.project_id,a.sso_secret_file,a.asset_root) as app:
         print("FilmWiki Step31 private collaboration on 127.0.0.1:"+str(a.port),flush=True)
         app.serve_forever(poll_interval=.4)
 
