@@ -106,21 +106,26 @@ def read_indexed_page(project,secret,sheet,limit=50,cursor=None,q="",field=None,
             mode="short-query-scan"
         if field is not None:
             if kind=="string":
+                # Row-first correlated lookup avoids materializing 30k+ common
+                # value matches just to return the first requested 50 rows.
                 sql+=(
-                    " AND r.record_id IN (SELECT e.record_id FROM idx.exact_fields e "
-                    "WHERE e.sheet_index=? AND e.column_index=? "
-                    "AND e.value_type='string' AND e.value_json=?)"
+                    " AND EXISTS (SELECT 1 FROM idx.exact_fields e "
+                    "WHERE e.record_id=r.record_id AND e.sheet_index=? "
+                    "AND e.column_index=? AND e.value_type='string' AND e.value_json=?)"
                 )
                 params.extend([sheet,field,json.dumps(value,ensure_ascii=False,separators=(",",":"))])
             else:
+                # Numeric index yields source_row (not unindexed record_id).
+                # Source rows are unique within a worksheet and can be looked
+                # up using the canonical (SHA,sheet,row) UNIQUE index.
                 sql+=(
-                    " AND r.record_id IN (SELECT e.record_id FROM idx.exact_fields e "
-                    "WHERE e.sheet_index=? AND e.column_index=? "
+                    " AND r.source_row IN (SELECT e.source_row FROM idx.exact_fields e "
+                    "INDEXED BY ix_numeric WHERE e.sheet_index=? AND e.column_index=? "
                     "AND e.value_type='number' AND e.number_value "+{
                       "eq":"=","lt":"<","le":"<=","gt":">","ge":">="
-                    }[op]+" ?)"
+                    }[op]+" ? AND e.source_row>?)"
                 )
-                params.extend([sheet,field,number])
+                params.extend([sheet,field,number,after])
             mode += "+typed-field"
         sql+=" ORDER BY r.source_row LIMIT ?"
         params.append(limit+1)
